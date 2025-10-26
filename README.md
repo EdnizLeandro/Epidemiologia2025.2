@@ -1,6 +1,6 @@
 # 🧬 Epidemiologia2025.2
 
-**Epidemiologia2025.2** implementa um modelo híbrido que combina o **SEIR** (Suscetíveis, Expostos, Infectados, Recuperados) com **Autômatos Celulares (AC)** para simular a propagação **temporal e espacial** de doenças infecciosas.  
+**Epidemiologia2025.2** implementa um modelo híbrido que combina o **SEIR** (Suscetíveis, Expostos, Infectados, Recuperados) ** para simular a propagação **temporal e espacial** da covid19 em pernambuco no príodo de 27/03/2020 há 30/08/2025.  
 O projeto também utiliza a **Entropia de Shannon** para quantificar a **desordem espacial**, analisando a dinâmica e complexidade dos surtos epidêmicos.
 
 ---
