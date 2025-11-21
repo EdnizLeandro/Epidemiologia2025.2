@@ -48,7 +48,8 @@ Utilizada para medir a **desordem espacial** do sistema.
 Valores altos → alta incerteza e diversidade de estados;  
 Valores baixos → maior ordem e estabilidade.
 
----
+
+
 
 ## ⚙️ Tecnologias Utilizadas
 
