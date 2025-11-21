@@ -25,7 +25,8 @@ Essa combinação permite compreender tanto a evolução da epidemia ao longo do
 - Quantificar a **entropia da informação** como medida de desordem espacial.  
 - Gerar visualizações dinâmicas e estatísticas da propagação da doença.
 
----
+
+
 
 ## 🧠 Modelos Utilizados
 
