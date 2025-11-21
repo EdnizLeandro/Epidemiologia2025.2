@@ -5,6 +5,7 @@ O projeto também utiliza a **Entropia de Shannon** para quantificar a **desorde
 
 
 
+
 ## 📖 Descrição do Projeto
 
 Este projeto propõe uma abordagem integrada para estudar a disseminação de doenças com período de latência, unindo:
@@ -14,7 +15,8 @@ Este projeto propõe uma abordagem integrada para estudar a disseminação de do
 
 Essa combinação permite compreender tanto a evolução da epidemia ao longo do tempo quanto os padrões espaciais emergentes de contágio.
 
----
+
+
 
 ## 🎯 Objetivos
 
