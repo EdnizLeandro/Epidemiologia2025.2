@@ -22,7 +22,7 @@ st.set_page_config(
     page_title="COVID-PE Dashboard + Modelo SEIR"
 )
 
-st.title("📊 Dashboard COVID-PE — Dados Epidemiológicos + SEIR Interativo")
+st.title("📊 Dashboard COVID-PE - Dados Epidemiológicos + SEIR Interativo")
 
 
 # ------------------------------------------------------------
@@ -43,12 +43,12 @@ def load_data():
         df = pd.read_csv(DATA_CSV)
 
     else:
-        st.error("❌ Arquivos covid_pe_seir_ready não encontrados na pasta do script.")
+        st.error(" Arquivos covid_pe_seir_ready não encontrados na pasta do script.")
         st.stop()
 
     # Garantir coluna 'date'
     if "date" not in df.columns:
-        st.error("❌ O dataset não contém a coluna 'date'.")
+        st.error(" O dataset não contém a coluna 'date'.")
         st.stop()
 
     # Converter datas
@@ -104,14 +104,14 @@ if sel_muni != "Todos":
     dff = dff[dff['municipio'] == sel_muni]
 
 if dff.empty:
-    st.error("❌ Não há dados para o período ou município selecionado.")
+    st.error(" Não há dados para o período ou município selecionado.")
     st.stop()
 
 
 # ------------------------------------------------------------
 # RESUMO GERAL
 # ------------------------------------------------------------
-st.header(f"📌 Resumo — {sel_muni if sel_muni != 'Todos' else 'Todos os municípios'}")
+st.header(f" Resumo - {sel_muni if sel_muni != 'Todos' else 'Todos os municípios'}")
 
 col1, col2, col3 = st.columns(3)
 
@@ -143,7 +143,7 @@ fig2 = px.line(dff, x='date', y='I_est', title='Estimativa de infectantes I(t)')
 st.plotly_chart(fig2, use_container_width=True)
 
 if sel_muni == "Todos":
-    st.subheader("🏆 Top 20 municípios por número de casos")
+    st.subheader(" Top 20 municípios por número de casos")
     top20 = (
         dff.groupby('municipio')['new_cases']
         .sum()
@@ -211,10 +211,3 @@ if run_seir:
     st.subheader("📉 Simulação SEIR")
     fig_seir = px.line(sim_df, x='date', y=['S', 'E', 'I', 'R'], title="Modelo SEIR")
     st.plotly_chart(fig_seir, use_container_width=True)
-
-
-# ------------------------------------------------------------
-# RODAPÉ
-# ------------------------------------------------------------
-st.markdown("---")
-st.write("Os arquivos 'covid_pe_seir_ready.csv' ou '.parquet' devem estar na mesma pasta do script.")
