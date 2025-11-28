@@ -151,6 +151,6 @@ if run_seir:
     st.plotly_chart(fig_seir, use_container_width=True)
 
 st.markdown("---")
-st.write("Arquivos covid_pe_seir_ready (CSV/Parquet) devem estar na mesma pasta deste script.")
+#st.write("Arquivos covid_pe_seir_ready (CSV/Parquet) devem estar na mesma pasta deste script.")
 
 
