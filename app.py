@@ -10,9 +10,7 @@ import numpy as np
 from pathlib import Path
 
 
-# ------------------------------------------------------------
 # CONFIGURAÇÕES GERAIS DO APP
-# ------------------------------------------------------------
 BASE_DIR = Path(__file__).parent
 DATA_PARQUET = BASE_DIR / "covid_pe_seir_ready.parquet"
 DATA_CSV = BASE_DIR / "covid_pe_seir_ready.csv"
@@ -25,9 +23,8 @@ st.set_page_config(
 st.title("📊 Dashboard COVID-PE - Dados Epidemiológicos + SEIR Interativo")
 
 
-# ------------------------------------------------------------
+
 # TEMA CORPORATIVO PLOTLY
-# ------------------------------------------------------------
 COLOR_PRIMARY = "#1f77b4"    # azul profissional
 COLOR_SECONDARY = "#17becf"  # teal
 COLOR_TREND = "#ff7f0e"      # laranja
@@ -54,9 +51,7 @@ def apply_plot_styling(fig):
     return fig
 
 
-# ------------------------------------------------------------
 # FUNÇÃO PARA CARREGAR DADOS
-# ------------------------------------------------------------
 @st.cache_data
 def load_data():
     if DATA_PARQUET.exists():
@@ -74,9 +69,7 @@ def load_data():
 df = load_data()
 
 
-# ------------------------------------------------------------
-# SIDEBAR — FILTROS
-# ------------------------------------------------------------
+# SIDEBAR - FILTROS
 st.sidebar.header("🔎 Filtros e Parâmetros")
 
 munis = sorted(df['municipio'].dropna().unique())
@@ -97,9 +90,7 @@ init_days = st.sidebar.number_input("Dias p/ estimar I0", 1, 60, 7)
 run_seir = st.sidebar.button("▶ Rodar simulação SEIR")
 
 
-# ------------------------------------------------------------
 # APLICAR FILTROS NA BASE
-# ------------------------------------------------------------
 mask = (df['date'] >= pd.to_datetime(start_date)) & (df['date'] <= pd.to_datetime(end_date))
 dff = df[mask].copy()
 
@@ -110,11 +101,8 @@ if dff.empty:
     st.error(" Não há dados para o período ou município selecionado.")
     st.stop()
 
-
-# ------------------------------------------------------------
 # RESUMO
-# ------------------------------------------------------------
-st.header(f"📌 Resumo - {sel_muni if sel_muni != 'Todos' else 'Todos os municípios'}")
+st.header(f" Resumo - {sel_muni if sel_muni != 'Todos' else 'Todos os municípios'}")
 
 col1, col2, col3 = st.columns(3)
 
@@ -127,10 +115,7 @@ col2.metric("Pico diário de casos", int(dff['new_cases'].max()))
 pop_est = dff['population'].median() if sel_muni == "Todos" else dff['population'].iloc[0]
 col3.metric("População estimada", int(pop_est))
 
-
-# ------------------------------------------------------------
 # GRÁFICO 1 — Casos Diários + Média Móvel
-# ------------------------------------------------------------
 st.subheader("📈 Evolução dos Casos Diários (com Média Móvel)")
 
 fig = px.line(
@@ -152,9 +137,7 @@ fig = apply_plot_styling(fig)
 st.plotly_chart(fig, use_container_width=True)
 
 
-# ------------------------------------------------------------
 # GRÁFICO 2 — Estimativa de Infectantes
-# ------------------------------------------------------------
 st.subheader("📉 Estimativa de Infectantes (I_est)")
 
 fig2 = px.line(
@@ -168,12 +151,9 @@ fig2 = px.line(
 fig2 = apply_plot_styling(fig2)
 st.plotly_chart(fig2, use_container_width=True)
 
-
-# ------------------------------------------------------------
 # GRÁFICO 3 — Top 20 Municípios
-# ------------------------------------------------------------
 if sel_muni == "Todos":
-    st.subheader("🏙️ Top 20 Municípios com Mais Casos Acumulados")
+    st.subheader(" Top 20 Municípios com Mais Casos Acumulados")
 
     top20 = (
         dff.groupby("municipio")["new_cases"]
@@ -195,10 +175,7 @@ if sel_muni == "Todos":
     fig3 = apply_plot_styling(fig3)
     st.plotly_chart(fig3, use_container_width=True)
 
-
-# ------------------------------------------------------------
 # SIMULAÇÃO SEIR
-# ------------------------------------------------------------
 def run_seir_simulation(N, E0, I0, R0, beta, sigma, gamma, days):
     S0 = N - E0 - I0 - R0
     S, E, I, R = [S0], [E0], [I0], [R0]
