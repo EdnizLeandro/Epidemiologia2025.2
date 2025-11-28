@@ -83,7 +83,7 @@ col3.metric("População (ex. média)", int(dff['population'].median()))
 
 # -------------------- PLOTS --------------------
 st.subheader("Casos diários e média móvel (7d)")
-fig = px.line(dff, x='date', y=['new_cases','média_7'], labels={'value':'casos','date':'data'},
+fig = px.line(dff, x='date', y=['new_cases','ma7'], labels={'value':'casos','date':'data'},
               title='Casos diários e média móvel')
 st.plotly_chart(fig, use_container_width=True)
 
