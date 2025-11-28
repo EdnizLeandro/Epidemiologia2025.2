@@ -23,7 +23,7 @@ COLOR_E = "#9467bd"        # Roxo
 COLOR_I = "#d62728"        # Vermelho
 COLOR_R = "#8c564b"        # Marrom
 
-st.title("📊 Dashboard COVID-PE — Dados e Simulação SEIR")
+st.title("📊 Dashboard COVID-PE - Dados e Simulação SEIR")
 
 
 # ---------------------- CARREGAR DADOS -------------------------
@@ -126,7 +126,7 @@ st.plotly_chart(fig2, use_container_width=True)
 
 # Top 20 municípios
 if sel_muni == "Todos":
-    st.subheader("🏆 Top 20 municípios — novos casos no período selecionado")
+    st.subheader(" Top 20 municípios — novos casos no período selecionado")
 
     top = (
         dff.groupby("municipio")["new_cases"]
