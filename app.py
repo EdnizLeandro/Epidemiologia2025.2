@@ -95,7 +95,7 @@ if dff.empty:
     st.stop()
 
 # RESUMO
-st.header(f"📌 Resumo - {sel_muni if sel_muni != 'Todos' else 'Todos os municípios'}")
+st.header(f" Resumo - {sel_muni if sel_muni != 'Todos' else 'Todos os municípios'}")
 
 col1, col2, col3 = st.columns(3)
 
