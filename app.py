@@ -1,106 +1,151 @@
+import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import locale
+import plotly.express as px
+import numpy as np
+from pathlib import Path
 
-# -----------------------------
-# 🇧🇷 Configurar normas brasileiras
-# -----------------------------
-try:
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-except:
-    locale.setlocale(locale.LC_ALL, '')
+# -------- CONFIG --------
+BASE_DIR = Path(__file__).parent
+DATA_PARQUET = BASE_DIR / "covid_pe_seir_ready.parquet"
+DATA_CSV = BASE_DIR / "covid_pe_seir_ready.csv"
 
-# Função para formatar números no padrão BR
-def format_number_br(x):
-    return locale.format_string("%.0f", x, grouping=True)
+st.set_page_config(layout="wide", page_title="COVID-PE Dashboard + SEIR")
 
-# Função para formatar datas
-def format_date_br(date):
-    return pd.to_datetime(date).strftime('%d/%m/%Y')
+st.title("Dashboard COVID-PE — Dados e SEIR (interativo)")
 
+# load dataset
+@st.cache_data
+def load_data():
+    if DATA_PARQUET.exists():
+        df = pd.read_parquet(DATA_PARQUET)
+    elif DATA_CSV.exists():
+        df = pd.read_csv(DATA_CSV)
+    else:
+        st.error("Arquivos covid_pe_seir_ready não encontrados na pasta do script.")
+        st.stop()
 
-# -----------------------------
-# 1. Carregar dados
-# -----------------------------
-file_path = r"D:\Dataset covidPE 2020-2024 (NOVO)\Codigo do Projeto\covidPE_2020_2024_tratado_FINAL.csv"
-df = pd.read_csv(file_path, parse_dates=['data'], dayfirst=True)
+    df["date"] = pd.to_datetime(df["date"])
+    return df
 
-print("Dimensão:", df.shape)
-print(df.head())
+df = load_data()
 
+# -------------------- SIDEBAR --------------------
+st.sidebar.header("Filtros e parâmetros")
+munis = sorted(df['municipio'].unique())
+sel_muni = st.sidebar.selectbox("Município", ["Todos"] + munis, index=0)
 
-# -----------------------------
-# 2. Converter formato das datas (BR)
-# -----------------------------
-df['data_br'] = df['data'].dt.strftime('%d/%m/%Y')
+# Date range
+min_date = df['date'].min()
+max_date = df['date'].max()
 
+date_range = st.sidebar.date_input("Período", [min_date, max_date])
+if isinstance(date_range, (list, tuple)):
+    if len(date_range) == 2:
+        start_date, end_date = date_range
+    else:
+        start_date = end_date = date_range[0]
+else:
+    start_date = end_date = date_range
 
-# -----------------------------
-# 3. Estatísticas básicas
-# -----------------------------
-print("\n📌 Estatísticas descritivas (casos):")
-print(df['casos_novos'].describe())
+# SEIR parameters
+st.sidebar.subheader("Parâmetros SEIR (simulação)")
+beta = st.sidebar.slider("Taxa de transmissão (β)", 0.0, 2.0, 0.6, 0.01)
+sigma = st.sidebar.slider("Taxa incubação (σ = 1/latência)", 0.0, 1.0, 1/5, 0.01)
+gamma = st.sidebar.slider("Taxa recuperação (γ = 1/infectious)", 0.0, 1.0, 1/7, 0.01)
+init_days = st.sidebar.number_input("Dias p/ estimar I0 (soma de novos casos)", 1, 60, 7)
 
-print("\n📌 Estatísticas descritivas (óbitos):")
-print(df['obitos_novos'].describe())
-
-
-# -----------------------------
-# 4. Casos totais por município
-# -----------------------------
-casos_municipio = df.groupby('municipio')['casos_novos'].sum().sort_values(ascending=False)
-
-plt.figure(figsize=(12, 7))
-casos_municipio.head(15).plot(kind='bar', color="#1f77b4")
-
-plt.title("15 Municípios com Mais Casos Acumulados — PE (2020–2024)", fontsize=16, weight='bold')
-plt.ylabel("Total de Casos", fontsize=12)
-plt.xlabel("Município", fontsize=12)
-plt.xticks(rotation=45, ha='right')
-
-plt.gca().yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: format_number_br(x)))
-plt.tight_layout()
-plt.show()
+st.sidebar.markdown("---")
+run_seir = st.sidebar.button("Rodar SEIR")
 
 
-# -----------------------------
-# 5. Evolução diária dos casos em Pernambuco
-# -----------------------------
-casos_diarios = df.groupby('data')['casos_novos'].sum()
+# -------------------- FILTER --------------------
+mask = (df['date'] >= pd.to_datetime(start_date)) & (df['date'] <= pd.to_datetime(end_date))
+dff = df[mask].copy()
 
-plt.figure(figsize=(14, 6))
-plt.plot(casos_diarios.index, casos_diarios.values, linewidth=2, color="#d62728")
+if sel_muni != "Todos":
+    dff = dff[dff['municipio'] == sel_muni]
 
-plt.title("Evolução Diária dos Casos de COVID-19 — Pernambuco", fontsize=16, weight='bold')
-plt.ylabel("Casos por Dia", fontsize=12)
-plt.xlabel("Data", fontsize=12)
-
-# Formatando datas no eixo X
-plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(10))
-plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: format_date_br(casos_diarios.index[int(x)])) if len(casos_diarios) > 1 else "")
-
-plt.gca().yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: format_number_br(x)))
-
-plt.grid(alpha=0.3)
-plt.tight_layout()
-plt.show()
+if dff.empty:
+    st.error("Não há dados para o período ou município selecionado.")
+    st.stop()
 
 
-# -----------------------------
-# 6. Óbitos por Município (Top 15)
-# -----------------------------
-obitos_municipio = df.groupby('municipio')['obitos_novos'].sum().sort_values(ascending=False)
+# -------------------- HEADER SUMMARY --------------------
+st.header(f"Resumo — {'Todos os municípios' if sel_muni=='Todos' else sel_muni}")
 
-plt.figure(figsize=(12, 7))
-obitos_municipio.head(15).plot(kind='bar', color="#2ca02c")
+col1, col2, col3 = st.columns(3)
+col1.metric("Período (dias)", (pd.to_datetime(end_date)-pd.to_datetime(start_date)).days + 1)
+col1.metric("Total casos (novos)", int(dff['new_cases'].sum()))
+col2.metric("Casos acumulados (máx)", int(dff['cum_cases'].max()))
+col2.metric("Pico diário (máx new_cases)", int(dff['new_cases'].max()))
+col3.metric("População (ex. média)", int(dff['population'].median()))
 
-plt.title("15 Municípios com Mais Óbitos Acumulados — PE (2020–2024)", fontsize=16, weight='bold')
-plt.ylabel("Total de Óbitos", fontsize=12)
-plt.xlabel("Município", fontsize=12)
-plt.xticks(rotation=45, ha='right')
 
-plt.gca().yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: format_number_br(x)))
+# -------------------- PLOTS --------------------
+st.subheader("Casos diários e média móvel (7d)")
+fig = px.line(dff, x='date', y=['new_cases','ma7'], labels={'value':'casos','date':'data'},
+              title='Casos diários e média móvel')
+st.plotly_chart(fig, use_container_width=True)
 
-plt.tight_layout()
-plt.show()
+st.subheader("Índice estimado: I_est (soma últimos dias)")
+fig2 = px.line(dff, x='date', y='I_est', title='Estimativa de infectantes I_t')
+st.plotly_chart(fig2, use_container_width=True)
+
+if sel_muni == "Todos":
+    st.subheader("Top 20 municípios por casos no período")
+    top = dff.groupby('municipio')['new_cases'].sum().sort_values(ascending=False).head(20).reset_index()
+    fig3 = px.bar(top, x='municipio', y='new_cases')
+    st.plotly_chart(fig3, use_container_width=True)
+
+
+# -------------------- SEIR SIMULATION --------------------
+def run_seir_simulation(N, E0, I0, R0, beta, sigma, gamma, days):
+    S0 = N - E0 - I0 - R0
+    S, E, I, R = [S0], [E0], [I0], [R0]
+    dt = 1.0
+
+    for t in range(days):
+        S_t = S[-1] - (beta * S[-1] * I[-1] / N) * dt
+        E_t = E[-1] + (beta * S[-1] * I[-1] / N - sigma * E[-1]) * dt
+        I_t = I[-1] + (sigma * E[-1] - gamma * I[-1]) * dt
+        R_t = R[-1] + (gamma * I[-1]) * dt
+
+        S.append(max(S_t,0))
+        E.append(max(E_t,0))
+        I.append(max(I_t,0))
+        R.append(max(R_t,0))
+
+    # começa da última data observada (mais natural)
+    start = dff['date'].max()
+    days_index = pd.date_range(start, periods=len(S), freq='D')
+
+    return pd.DataFrame({"date": days_index, "S": S, "E": E, "I": I, "R": R})
+
+
+if run_seir:
+    if sel_muni == "Todos":
+        st.warning("Selecione um município para simulação ou use população média.")
+
+    # Escolhe população
+    N = int(dff['population'].median()) if sel_muni == "Todos" else int(dff['population'].iloc[0])
+
+    # Estimar I0
+    last = dff.sort_values("date").tail(init_days)
+    I0 = int(last['new_cases'].sum())
+
+    # Estimar E0 usando latência = 1/sigma
+    D_INC = max(1, int(round(1/sigma)))
+    E0 = int(dff.sort_values("date").tail(D_INC)['new_cases'].sum())
+
+    # Estimar R0 se existir
+    R0 = int(dff['R_est'].iloc[-1]) if 'R_est' in dff.columns else 0
+
+    st.info(f"Estimativas iniciais: I0={I0}, E0={E0}, R0={R0}, N={N}")
+
+    days_sim = st.slider("Dias para simular", 30, 365, 120)
+
+    sim_df = run_seir_simulation(N, E0, I0, R0, beta, sigma, gamma, days_sim)
+
+    st.subheader("Simulação SEIR")
+    fig_seir = px.line(sim_df, x='date', y=['S','E','I','R'], title="SEIR Simulation")
+    st.plotly_chart(fig_seir, use_container_width=True)
