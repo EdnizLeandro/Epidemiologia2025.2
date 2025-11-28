@@ -150,7 +150,4 @@ if run_seir:
     fig_seir = px.line(sim_df, x='date', y=['S','E','I','R'], title="SEIR Simulation")
     st.plotly_chart(fig_seir, use_container_width=True)
 
-st.markdown("---")
-st.write("Arquivos covid_pe_seir_ready (CSV/Parquet) devem estar na mesma pasta deste script.")
-
 
