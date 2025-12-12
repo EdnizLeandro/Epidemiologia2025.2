@@ -20,9 +20,9 @@ import base64
 # CONFIGURAÇÃO DO APP
 # ------------------------------------------------------------
 
-st.set_page_config(layout="wide", page_title="COVID-PE — MODELOS EPIDEMIOLÓGICOS (BR)")
+st.set_page_config(layout="wide", page_title="COVID-PE - MODELOS EPIDEMIOLÓGICOS (BR)")
 
-st.title("🔬 MODELAGEM EPIDEMIOLÓGICA COVID19-PE — SIR / SEIR / SEIRD / SEIRV (BR)")
+st.title("🔬 MODELAGEM EPIDEMIOLÓGICA COVID19-PE  SIR / SEIR / SEIRD / SEIRV (BR)")
 
 
 # ------------------------------------------------------------
