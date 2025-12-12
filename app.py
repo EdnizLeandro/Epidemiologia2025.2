@@ -31,7 +31,8 @@ except Exception:
 st.set_page_config(layout="wide", page_title="SEIR Suite — COVID-PE", initial_sidebar_state="expanded")
 st.title("🔬 SEIR Suite — Modelos epidemiológicos (SIR / SEIR / SEIRD / SEIRV) — COVID-PE")
 
-BASE_PARQUET_PATH = Path("/mnt/data/covid_pe_seir_ready.parquet")
+BASE_PARQUET_PATH = Path(__file__).parent / "covid_pe_seir_ready.parquet"
+
 
 # Styling constants
 COLOR_PRIMARY = "#1f77b4"
