@@ -1,11 +1,10 @@
-# app_seir_modelos.py
-"""
-SEIR Suite — Versão LEVE (sem MCMC)
-Modelos: SIR, SEIR, SEIRD, SEIRV
-Ajuste: Least-Squares (rápido)
-Visualização: Plotly
-Dados: covid_pe_seir_ready.parquet (mesma pasta)
-"""
+# ============================================================
+#  SEIR SUITE — VERSÃO LEVE + CORRIGIDA
+#  MODELOS: SIR / SEIR / SEIRD / SEIRV
+#  AJUSTE: LEAST-SQUARES
+#  DATAS EM FORMATO BRASILEIRO
+#  TÍTULOS E EIXOS EM MAIÚSCULO
+# ============================================================
 
 import streamlit as st
 import pandas as pd
@@ -17,102 +16,111 @@ import plotly.express as px
 import plotly.graph_objects as go
 import base64
 
-# ============================================================
+# ------------------------------------------------------------
 # CONFIGURAÇÃO DO APP
-# ============================================================
-st.set_page_config(layout="wide",
-                   page_title="COVID-PE — Modelos Epidemiológicos")
+# ------------------------------------------------------------
 
-st.title("🔬 Modelos Epidemiológicos — COVID-PE (Versão LEVE — sem MCMC)")
+st.set_page_config(layout="wide", page_title="COVID-PE — MODELOS EPIDEMIOLÓGICOS (BR)")
+
+st.title("🔬 MODELAGEM EPIDEMIOLÓGICA COVID-PE — SIR / SEIR / SEIRD / SEIRV (BR)")
 
 
-# ============================================================
-# CAMINHOS PARA OS ARQUIVOS
-# ============================================================
+# ------------------------------------------------------------
+# CAMINHOS DOS ARQUIVOS
+# ------------------------------------------------------------
+
 DEFAULT_PARQUET = Path(__file__).parent / "covid_pe_seir_ready.parquet"
 DEFAULT_CSV = Path(__file__).parent / "covid_pe_seir_ready.csv"
 
 
-# ============================================================
+# ------------------------------------------------------------
 # FUNÇÕES AUXILIARES
-# ============================================================
-def apply_style(fig):
+# ------------------------------------------------------------
+
+def estilo(fig):
     fig.update_layout(
         template="plotly_white",
-        title_font=dict(size=20, color="#1f77b4"),
-        legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
-        margin=dict(l=40, r=40, t=80, b=60)
+        title_font=dict(size=22, color="#1f77b4"),
+        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center"),
+        margin=dict(l=40, r=40, t=80, b=60),
+        xaxis_title="DATA",
+        yaxis_title="VALOR"
     )
     return fig
 
 
-def download_link(df, filename="export.csv"):
+def baixar(df, nome="export.csv"):
     data = df.to_csv(index=False).encode("utf-8")
     b64 = base64.b64encode(data).decode()
-    return f'<a download="{filename}" href="data:file/csv;base64,{b64}">📥 Baixar {filename}</a>'
+    return f'<a download="{nome}" href="data:file/csv;base64,{b64}">📥 BAIXAR {nome}</a>'
 
 
-# ============================================================
-# ODEs DE CADA MODELO
-# ============================================================
+# ------------------------------------------------------------
+# ODEs DOS MODELOS
+# ------------------------------------------------------------
+
 def sir_ode(y, t, beta, gamma, N):
     S, I, R = y
-    dS = -beta * S * I / N
-    dI = beta * S * I / N - gamma * I
-    dR = gamma * I
-    return [dS, dI, dR]
-
+    return [
+        -beta*S*I/N,
+        beta*S*I/N - gamma*I,
+        gamma*I
+    ]
 
 def seir_ode(y, t, beta, sigma, gamma, N):
     S, E, I, R = y
-    dS = -beta * S * I / N
-    dE = beta * S * I / N - sigma * E
-    dI = sigma * E - gamma * I
-    dR = gamma * I
-    return [dS, dE, dI, dR]
-
+    return [
+        -beta*S*I/N,
+        beta*S*I/N - sigma*E,
+        sigma*E - gamma*I,
+        gamma*I
+    ]
 
 def seird_ode(y, t, beta, sigma, gamma, mu, N):
     S, E, I, R, D = y
-    dS = -beta * S * I / N
-    dE = beta * S * I / N - sigma * E
-    dI = sigma * E - gamma * I - mu * I
-    dR = gamma * I
-    dD = mu * I
-    return [dS, dE, dI, dR, dD]
+    return [
+        -beta*S*I/N,
+        beta*S*I/N - sigma*E,
+        sigma*E - gamma*I - mu*I,
+        gamma*I,
+        mu*I
+    ]
 
-
-def seirv_ode(y, t, beta, sigma, gamma, v_rate, N):
+def seirv_ode(y, t, beta, sigma, gamma, v, N):
     S, E, I, R = y
-    dS = -beta * S * I / N - v_rate * S
-    dE = beta * S * I / N - sigma * E
-    dI = sigma * E - gamma * I
-    dR = gamma * I + v_rate * S
-    return [dS, dE, dI, dR]
+    return [
+        -beta*S*I/N - v*S,
+        beta*S*I/N - sigma*E,
+        sigma*E - gamma*I,
+        gamma*I + v*S
+    ]
 
 
-# ============================================================
-# CARREGAMENTO DOS DADOS
-# ============================================================
+# ------------------------------------------------------------
+# CARREGAMENTO DO ARQUIVO
+# ------------------------------------------------------------
+
 @st.cache_data
-def load_data(uploaded=None):
+def carregar(uploaded=None):
     if uploaded is not None:
         if uploaded.name.endswith(".parquet"):
             df = pd.read_parquet(uploaded)
         else:
-            df = pd.read_csv(uploaded, parse_dates=["date"])
+            df = pd.read_csv(uploaded)
     else:
         if DEFAULT_PARQUET.exists():
             df = pd.read_parquet(DEFAULT_PARQUET)
-        elif DEFAULT_CSV.exists():
-            df = pd.read_csv(DEFAULT_CSV, parse_dates=["date"])
         else:
-            return None
+            df = pd.read_csv(DEFAULT_CSV)
 
     df.columns = [c.lower() for c in df.columns]
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df.dropna(subset=["date"])
-    
+
+    # Datas BR
+    df["data_br"] = df["date"].dt.strftime("%d/%m/%Y")
+
+    # Estimar I_est se faltar
     if "i_est" not in df.columns:
         df = df.sort_values("date")
         df["i_est"] = df["new_cases"].rolling(7, min_periods=1).sum()
@@ -123,180 +131,178 @@ def load_data(uploaded=None):
     return df
 
 
-uploaded = st.sidebar.file_uploader("Upload (opcional) CSV/Parquet pré-processado", type=["csv","parquet"])
-df = load_data(uploaded)
+uploaded = st.sidebar.file_uploader("Upload opcional do DATASET (CSV ou PARQUET)", type=["csv","parquet"])
+df = carregar(uploaded)
 
 if df is None:
-    st.error("Arquivo pre-processado não encontrado. Coloque covid_pe_seir_ready.parquet na mesma pasta ou faça upload.")
+    st.error("Nenhum arquivo encontrado.")
     st.stop()
 
 
-# ============================================================
+# ------------------------------------------------------------
 # FILTROS
-# ============================================================
+# ------------------------------------------------------------
+
 munis = sorted(df["municipio"].dropna().unique()) if "municipio" in df.columns else []
-sel_muni = st.sidebar.selectbox("Município", ["Todos"] + munis)
+sel_muni = st.sidebar.selectbox("MUNICÍPIO", ["TODOS"] + munis)
 
-date_min = df["date"].min().date()
-date_max = df["date"].max().date()
+dmin = df["date"].min().date()
+dmax = df["date"].max().date()
 
-start_date, end_date = st.sidebar.date_input(
-    "Período",
-    [date_min, date_max],
-    min_value=date_min,
-    max_value=date_max
-)
+ini, fim = st.sidebar.date_input("PERÍODO", [dmin, dmax])
 
-mask = (df["date"] >= pd.to_datetime(start_date)) & (df["date"] <= pd.to_datetime(end_date))
+mask = (df["date"] >= pd.to_datetime(ini)) & (df["date"] <= pd.to_datetime(fim))
 dff = df[mask].copy()
 
-if sel_muni != "Todos":
+if sel_muni != "TODOS":
     dff = dff[dff["municipio"] == sel_muni]
 
 if dff.empty:
-    st.error("Sem dados para o filtro selecionado.")
+    st.error("SEM DADOS PARA O FILTRO SELECIONADO.")
     st.stop()
 
 
-# ============================================================
-# SELEÇÃO DO MODELO
-# ============================================================
-model_choice = st.sidebar.selectbox("Modelo:", ["SIR", "SEIR", "SEIRD", "SEIRV"])
+# ------------------------------------------------------------
+# PARÂMETROS
+# ------------------------------------------------------------
+
+st.sidebar.header("PARÂMETROS DO MODELO")
+
+modelo = st.sidebar.selectbox("MODELO", ["SIR","SEIR","SEIRD","SEIRV"])
+
+beta0 = st.sidebar.slider("BETA (β)", 0.0, 2.0, 0.6)
+sigma0 = st.sidebar.slider("SIGMA (σ)", 0.01, 1.0, 0.2)
+gamma0 = st.sidebar.slider("GAMMA (γ)", 0.01, 1.0, 0.14)
+mu0 = st.sidebar.slider("MU (μ) — MORTALIDADE", 0.0, 0.2, 0.01)
+v0 = st.sidebar.slider("TAXA DE VACINAÇÃO (v)", 0.0, 0.1, 0.0)
+
+init_days = st.sidebar.number_input("DIAS PARA I0", 1, 60, 7)
+
+botao = st.sidebar.button("▶ RODAR AJUSTE + SIMULAÇÃO")
 
 
-# ============================================================
-# PARÂMETROS INICIAIS
-# ============================================================
-beta0 = st.sidebar.slider("β inicial", 0.0, 2.0, 0.6)
-sigma0 = st.sidebar.slider("σ inicial", 0.01, 1.0, 1/5)
-gamma0 = st.sidebar.slider("γ inicial", 0.01, 1.0, 1/7)
-mu0 = st.sidebar.slider("μ inicial (SEIRD)", 0.0, 0.2, 0.01)
-v0 = st.sidebar.slider("Taxa de vacinação v (SEIRV)", 0.0, 0.1, 0.0)
+# ------------------------------------------------------------
+# ESTIMAR I0, E0, S0, R0
+# ------------------------------------------------------------
 
-init_days = st.sidebar.number_input("Dias para I0", 1, 60, 7)
-
-run_sim = st.sidebar.button("▶ Rodar ajuste + simulação")
-
-
-# ============================================================
-# ESTIMAR I0, E0, R0, S0
-# ============================================================
 last = dff.sort_values("date").tail(init_days)
-I0 = int(last["new_cases"].sum())
-if I0 <= 0:
-    I0 = max(1, int(dff["new_cases"].median()))
 
-D_inc = max(1, int(round(1/sigma0)))
-E0 = int(dff.tail(D_inc)["new_cases"].sum())
-if E0 <= 0:
-    E0 = I0 * 2
+I0 = int(max(last["new_cases"].sum(), 1))
+
+E0 = int(max(dff.tail(int(1/sigma0))["new_cases"].sum(), I0*2))
 
 R0 = int(dff["r_est"].iloc[-1])
-pop = int(dff["population"].median())
-S0 = max(pop - E0 - I0 - R0, 0)
 
-st.write(f"**Condições iniciais estimadas:** S0={S0}, E0={E0}, I0={I0}, R0={R0}")
+N = int(dff["population"].median())
+
+S0 = max(N - E0 - I0 - R0, 0)
+
+st.write(f"**COND. INICIAIS:** S0={S0}, E0={E0}, I0={I0}, R0={R0}")
 
 
-# ============================================================
-# GRÁFICO DOS DADOS
-# ============================================================
-st.subheader("📈 Séries observadas")
-fig = px.line(
+# ------------------------------------------------------------
+# GRÁFICO DOS CASOS OBSERVADOS
+# ------------------------------------------------------------
+
+st.subheader("📈 CASOS OBSERVADOS (BR)")
+
+fig_obs = px.line(
     dff.sort_values("date"),
-    x="date",
-    y=["new_cases", "i_est", "r_est"],
-    title="Casos observados"
+    x="data_br",
+    y=["new_cases","i_est","r_est"],
+    labels={"value":"VALOR","variable":"VARIÁVEL","data_br":"DATA"},
+    title="CASOS OBSERVADOS"
 )
-st.plotly_chart(apply_style(fig), use_container_width=True)
+st.plotly_chart(estilo(fig_obs), use_container_width=True)
 
 
-# ============================================================
-# AJUSTE POR LEAST-SQUARES
-# ============================================================
-def fit_model():
-    t = np.arange(len(y_obs))
-
-    if model_choice == "SIR":
-        def resid(p):
-            b, g = p
-            sol = odeint(lambda y, tt: sir_ode(y, tt, b, g, pop), [S0,I0,R0], t)
-            return sol[:,1] - y_obs
-        x0 = [beta0, gamma0]
-        bounds = ([0,0.001], [5,1])
-
-    elif model_choice == "SEIR":
-        def resid(p):
-            b, s, g = p
-            sol = odeint(lambda y, tt: seir_ode(y, tt, b, s, g, pop), [S0,E0,I0,R0], t)
-            return sol[:,2] - y_obs
-        x0 = [beta0, sigma0, gamma0]
-        bounds = ([0,0.001,0.001], [5,1,1])
-
-    elif model_choice == "SEIRD":
-        def resid(p):
-            b, s, g, m = p
-            sol = odeint(lambda y, tt: seird_ode(y, tt, b, s, g, m, pop), [S0,E0,I0,R0,0], t)
-            return sol[:,2] - y_obs
-        x0 = [beta0, sigma0, gamma0, mu0]
-        bounds = ([0,0.001,0.001,0.0], [5,1,1,0.5])
-
-    else:  # SEIRV
-        def resid(p):
-            b, s, g, v = p
-            sol = odeint(lambda y, tt: seirv_ode(y, tt, b, s, g, v, pop), [S0,E0,I0,R0], t)
-            return sol[:,2] - y_obs
-        x0 = [beta0, sigma0, gamma0, v0]
-        bounds = ([0,0.001,0.001,0.0], [5,1,1,0.2])
-
-    res = least_squares(resid, x0, bounds=bounds, max_nfev=30000)
-    return res.x
-
+# ------------------------------------------------------------
+# AJUSTE — LEAST SQUARES
+# ------------------------------------------------------------
 
 y_obs = dff.sort_values("date")["i_est"].values
+t_obs = np.arange(len(y_obs))
+
+def ajustar():
+    if modelo == "SIR":
+        def resid(p):
+            b, g = p
+            sol = odeint(lambda y,t: sir_ode(y,t,b,g,N), [S0,I0,R0], t_obs)
+            return sol[:,1] - y_obs
+        x0 = [beta0, gamma0]
+        bounds = ([0,0.001],[5,1])
+
+    elif modelo == "SEIR":
+        def resid(p):
+            b,s,g = p
+            sol = odeint(lambda y,t: seir_ode(y,t,b,s,g,N), [S0,E0,I0,R0], t_obs)
+            return sol[:,2] - y_obs
+        x0 = [beta0,sigma0,gamma0]
+        bounds = ([0,0.001,0.001],[5,1,1])
+
+    elif modelo == "SEIRD":
+        def resid(p):
+            b,s,g,m = p
+            sol = odeint(lambda y,t: seird_ode(y,t,b,s,g,m,N), [S0,E0,I0,R0,0], t_obs)
+            return sol[:,2] - y_obs
+        x0 = [beta0,sigma0,gamma0,mu0]
+        bounds = ([0,0.001,0.001,0],[5,1,1,0.5])
+
+    else: # SEIRV
+        def resid(p):
+            b,s,g,v = p
+            sol = odeint(lambda y,t: seirv_ode(y,t,b,s,g,v,N), [S0,E0,I0,R0], t_obs)
+            return sol[:,2] - y_obs
+        x0 = [beta0,sigma0,gamma0,v0]
+        bounds = ([0,0.001,0.001,0],[5,1,1,0.2])
+
+    return least_squares(resid, x0, bounds=bounds, max_nfev=50000).x
 
 
-# ============================================================
-# EXECUTAR AJUSTE E SIMULAÇÃO
-# ============================================================
-if run_sim:
+# ------------------------------------------------------------
+# EXECUÇÃO
+# ------------------------------------------------------------
 
-    params = fit_model()
-    st.success(f"Parâmetros ajustados: {params}")
+if botao:
 
-    # SIMULAÇÃO FUTURA
-    days = st.slider("Dias de projeção", 30, 720, 180)
-    t = np.arange(days)
+    params = ajustar()
+    st.success(f"PARÂMETROS AJUSTADOS: {params}")
 
-    if model_choice == "SIR":
-        sol = odeint(lambda y,tt: sir_ode(y,tt,*params,pop), [S0,I0,R0], t)
+    # ---------------- PROJEÇÃO -----------------
+    dias = st.slider("DIAS PARA PROJEÇÃO", 30, 720, 180)
+    t = np.arange(dias)
+
+    if modelo == "SIR":
+        sol = odeint(lambda y,t: sir_ode(y,t,*params,N), [S0,I0,R0], t)
         cols = ["S","I","R"]
 
-    elif model_choice == "SEIR":
-        sol = odeint(lambda y,tt: seir_ode(y,tt,*params,pop), [S0,E0,I0,R0], t)
+    elif modelo == "SEIR":
+        sol = odeint(lambda y,t: seir_ode(y,t,*params,N), [S0,E0,I0,R0], t)
         cols = ["S","E","I","R"]
 
-    elif model_choice == "SEIRD":
-        sol = odeint(lambda y,tt: seird_ode(y,tt,*params,pop), [S0,E0,I0,R0,0], t)
+    elif modelo == "SEIRD":
+        sol = odeint(lambda y,t: seird_ode(y,t,*params,N), [S0,E0,I0,R0,0], t)
         cols = ["S","E","I","R","D"]
 
     else:
-        sol = odeint(lambda y,tt: seirv_ode(y,tt,*params,pop), [S0,E0,I0,R0], t)
+        sol = odeint(lambda y,t: seirv_ode(y,t,*params,N), [S0,E0,I0,R0], t)
         cols = ["S","E","I","R"]
 
     proj = pd.DataFrame(sol, columns=cols)
-    proj["date"] = pd.date_range(dff["date"].max(), periods=days, freq="D")
+    proj["DATA"] = pd.date_range(dff["date"].max(), periods=dias, freq="D").strftime("%d/%m/%Y")
 
-    # GRÁFICO
-    st.subheader("📉 Projeção futura")
-    fig_proj = px.line(proj, x="date", y=cols, title="Projeção (modelo ajustado)")
-    st.plotly_chart(apply_style(fig_proj), use_container_width=True)
+    st.subheader("📉 PROJEÇÃO FUTURA (BR)")
 
-    # DOWNLOAD
-    st.markdown(download_link(proj, f"projecao_{model_choice}.csv"), unsafe_allow_html=True)
+    fig_proj = px.line(
+        proj,
+        x="DATA",
+        y=cols,
+        title="PROJEÇÃO FUTURA",
+        labels={"DATA":"DATA"}
+    )
 
+    st.plotly_chart(estilo(fig_proj), use_container_width=True)
 
-else:
-    st.info("Clique em ▶ Rodar ajuste + simulação para iniciar.")
-
+    # download
+    st.markdown(baixar(proj, f"projecao_{modelo}.csv"), unsafe_allow_html=True)
 
