@@ -1,9 +1,6 @@
 streamlit
 pandas
 plotly
+numpy
 pyarrow
 fastparquet
-numpy
-
-
-
