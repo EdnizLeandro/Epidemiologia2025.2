@@ -22,9 +22,8 @@ Site: https://sl1nk.com/epidemiologia20252
   * **SEIR**
   * **SEIRD**
   * **SEIRV**
-* Comparar dados observados com simulações epidemiológicas
+* Compara dados observados com simulações epidemiológica
 * Fornecer uma ferramenta visual clara para apoio a estudos acadêmicos
-* Garantir reprodutibilidade, transparência e rigor metodológico
 
 ---
 
