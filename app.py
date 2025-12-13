@@ -1,7 +1,5 @@
-# ============================================================
-# COVID-19 EM PERNAMBUCO
-# DADOS OBSERVADOS + MODELOS EPIDEMIOLÓGICOS
-# ============================================================
+
+# COVID-19 EM PERNAMBUCO - DADOS OBSERVADOS + MODELOS EPIDEMIOLÓGICOS
 
 import streamlit as st
 import pandas as pd
@@ -9,18 +7,17 @@ import plotly.express as px
 from pathlib import Path
 import traceback
 
-# ------------------------------------------------------------
 # CONFIGURAÇÕES GERAIS
-# ------------------------------------------------------------
+
 st.set_option("client.showErrorDetails", True)
 
 BASE_DIR = Path(__file__).parent
 DATA_REAL = BASE_DIR / "covid_pe_seir_ready.parquet"
 DATA_MODEL = BASE_DIR / "cache.parquet"
 
-# ------------------------------------------------------------
+
 # FUNÇÕES AUXILIARES
-# ------------------------------------------------------------
+
 def read_parquet_safe(path: Path):
     try:
         return pd.read_parquet(path, engine="pyarrow")
@@ -47,10 +44,8 @@ def format_plot_br(fig):
     )
     return fig
 
-
-# ------------------------------------------------------------
 # APP PRINCIPAL
-# ------------------------------------------------------------
+
 def main():
 
     st.set_page_config(
@@ -58,11 +53,11 @@ def main():
         layout="wide"
     )
 
-    st.title("📊 COVID-19 EM PERNAMBUCO — DADOS E MODELOS EPIDEMIOLÓGICOS")
+    st.title("📊 COVID-19 EM PERNAMBUCO - DADOS E MODELOS EPIDEMIOLÓGICOS")
 
-    # --------------------------------------------------------
+
     # VERIFICAÇÃO DE ARQUIVOS
-    # --------------------------------------------------------
+   
     if not DATA_REAL.exists():
         st.error("ARQUIVO covid_pe_seir_ready.parquet NÃO ENCONTRADO.")
         st.stop()
@@ -71,15 +66,13 @@ def main():
         st.error("ARQUIVO cache.parquet NÃO ENCONTRADO.")
         st.stop()
 
-    # --------------------------------------------------------
-    # CARREGAMENTO
-    # --------------------------------------------------------
+       # CARREGAMENTO
+  
     df_real = read_parquet_safe(DATA_REAL)
     df_model = read_parquet_safe(DATA_MODEL)
 
-    # --------------------------------------------------------
     # NORMALIZAÇÃO
-    # --------------------------------------------------------
+    
     df_real["date"] = pd.to_datetime(df_real["date"], errors="coerce")
     df_model["date"] = pd.to_datetime(df_model["date"], errors="coerce")
 
@@ -90,9 +83,8 @@ def main():
     df_model["municipio"] = df_model["municipio"].str.upper().str.strip()
     df_model["modelo"] = df_model["modelo"].str.upper().str.strip()
 
-    # --------------------------------------------------------
     # SIDEBAR
-    # --------------------------------------------------------
+   
     st.sidebar.header("🎛️ FILTROS")
 
     municipios = ["TODOS"] + sorted(df_real["municipio"].unique())
@@ -115,9 +107,8 @@ def main():
     ini = pd.to_datetime(ini)
     fim = pd.to_datetime(fim)
 
-    # --------------------------------------------------------
     # DADOS OBSERVADOS
-    # --------------------------------------------------------
+    
     real = df_real[(df_real["date"] >= ini) & (df_real["date"] <= fim)]
 
     if sel_muni == "TODOS":
@@ -133,9 +124,8 @@ def main():
     else:
         real = real[real["municipio"] == sel_muni]
 
-    # --------------------------------------------------------
     # DADOS DOS MODELOS
-    # --------------------------------------------------------
+  
     model = df_model[
         (df_model["date"] >= ini) &
         (df_model["date"] <= fim) &
@@ -149,9 +139,8 @@ def main():
     else:
         model = model[model["municipio"] == sel_muni]
 
-    # --------------------------------------------------------
-    # ABAS
-    # --------------------------------------------------------
+       # ABAS
+ 
     tab1, tab2, tab3 = st.tabs([
         "📊 DADOS OBSERVADOS",
         "🧮 MODELOS EPIDEMIOLÓGICOS",
@@ -254,10 +243,8 @@ def main():
         else:
             st.info("COMPARAÇÃO NÃO DISPONÍVEL PARA ESTE MODELO.")
 
-
-# ------------------------------------------------------------
 # EXECUÇÃO SEGURA
-# ------------------------------------------------------------
+
 try:
     main()
 except Exception:
