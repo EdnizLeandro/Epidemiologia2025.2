@@ -53,8 +53,6 @@ Principais variáveis:
 * `I_est` – Estimativa de infectantes
 * `population` – População estimada
 
-> ⚠️ O aplicativo **ignora automaticamente dados que não sejam de Pernambuco**, garantindo consistência espacial.
-
 ---
 
 ### 🔹 `cache.parquet`
