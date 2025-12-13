@@ -100,7 +100,7 @@ if dff.empty:
 
 # RESUMO
 
-st.header(f"📌 RESUMO — {sel_muni.upper() if sel_muni != 'Todos' else 'ESTADO DE PERNAMBUCO'}")
+st.header(f"RESUMO - {sel_muni.upper() if sel_muni != 'Todos' else 'ESTADO DE PERNAMBUCO'}")
 
 c1, c2, c3 = st.columns(3)
 
