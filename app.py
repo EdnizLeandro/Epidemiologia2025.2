@@ -1,6 +1,6 @@
 # ============================================================
-#  DASHBOARD EPIDEMIOLÓGICO COVID-PE
-#  VISUALIZAÇÃO PROFISSIONAL A PARTIR DE CACHE
+# DASHBOARD EPIDEMIOLÓGICO COVID-PE
+# VISUALIZAÇÃO A PARTIR DE CACHE (ALTA PERFORMANCE)
 # ============================================================
 
 import streamlit as st
@@ -20,9 +20,9 @@ st.set_page_config(
 st.title("📊 COVID-19 EM PERNAMBUCO — MODELAGEM EPIDEMIOLÓGICA")
 st.markdown(
     """
-    **Modelos disponíveis:** SIR, SEIR, SEIRD e SEIRV  
-    **Fonte:** Base epidemiológica tratada + simulações offline  
-    **Performance:** Cache pré-computado (parquet)
+    **MODELOS:** SIR, SEIR, SEIRD, SEIRV  
+    **ARQUITETURA:** SIMULAÇÃO OFFLINE + DASHBOARD ONLINE  
+    **DESEMPENHO:** CACHE PARQUET PRÉ-COMPUTADO
     """
 )
 
@@ -40,7 +40,6 @@ def carregar_cache():
 
     df = pd.read_parquet(CACHE_FILE)
     df["date"] = pd.to_datetime(df["date"])
-    df["DATA"] = df["date"].dt.strftime("%d/%m/%Y")
     return df
 
 df = carregar_cache()
@@ -51,32 +50,66 @@ df = carregar_cache()
 
 st.sidebar.header("🎛️ CONTROLES")
 
-municipios = sorted(df["municipio"].unique())
+municipios = ["TODOS"] + sorted(df["municipio"].unique())
 modelos = sorted(df["modelo"].unique())
 
 sel_muni = st.sidebar.selectbox("MUNICÍPIO", municipios)
 sel_modelo = st.sidebar.selectbox("MODELO EPIDEMIOLÓGICO", modelos)
 
-datas = sorted(df["date"].unique())
+data_min = df["date"].min().date()
+data_max = df["date"].max().date()
+
 ini, fim = st.sidebar.date_input(
     "PERÍODO",
-    [datas[0], datas[-1]],
-    min_value=datas[0],
-    max_value=datas[-1]
+    [data_min, data_max],
+    min_value=data_min,
+    max_value=data_max
 )
 
 # ------------------------------------------------------------
-# FILTRAGEM
+# LINHA DO TEMPO COMPLETA (REGRA DE OURO)
 # ------------------------------------------------------------
 
+datas_completas = pd.date_range(
+    df["date"].min(),
+    df["date"].max(),
+    freq="D"
+)
+
+# ------------------------------------------------------------
+# FILTRAGEM + AGREGAÇÃO CORRETA
+# ------------------------------------------------------------
+
+if sel_muni == "TODOS":
+    dff = (
+        df[df["modelo"] == sel_modelo]
+        .groupby("date")[["S", "E", "I", "R", "D"]]
+        .sum()
+        .reindex(datas_completas, fill_value=0)
+        .reset_index()
+        .rename(columns={"index": "date"})
+    )
+else:
+    dff = (
+        df[
+            (df["municipio"] == sel_muni) &
+            (df["modelo"] == sel_modelo)
+        ]
+        .set_index("date")
+        .reindex(datas_completas)
+        .reset_index()
+        .rename(columns={"index": "date"})
+    )
+
+# Datas BR
+dff["DATA"] = dff["date"].dt.strftime("%d/%m/%Y")
+
+# Aplicar período
 mask = (
-    (df["municipio"] == sel_muni) &
-    (df["modelo"] == sel_modelo) &
-    (df["date"] >= pd.to_datetime(ini)) &
-    (df["date"] <= pd.to_datetime(fim))
+    (dff["date"] >= pd.to_datetime(ini)) &
+    (dff["date"] <= pd.to_datetime(fim))
 )
-
-dff = df[mask].copy()
+dff = dff[mask]
 
 if dff.empty:
     st.warning("NENHUM DADO PARA OS FILTROS SELECIONADOS.")
@@ -86,14 +119,14 @@ if dff.empty:
 # VISÃO GERAL
 # ------------------------------------------------------------
 
-st.subheader("📌 VISÃO GERAL DA SIMULAÇÃO")
+st.subheader("📌 VISÃO GERAL")
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-col1.metric("MUNICÍPIO", sel_muni)
-col2.metric("MODELO", sel_modelo)
-col3.metric("DATA INICIAL", dff["DATA"].iloc[0])
-col4.metric("DATA FINAL", dff["DATA"].iloc[-1])
+c1.metric("MUNICÍPIO", sel_muni)
+c2.metric("MODELO", sel_modelo)
+c3.metric("DATA INICIAL", dff["DATA"].iloc[0])
+c4.metric("DATA FINAL", dff["DATA"].iloc[-1])
 
 # ------------------------------------------------------------
 # GRÁFICO PRINCIPAL
@@ -101,7 +134,7 @@ col4.metric("DATA FINAL", dff["DATA"].iloc[-1])
 
 st.subheader("📉 EVOLUÇÃO DOS COMPARTIMENTOS")
 
-cols_plot = [c for c in ["S","E","I","R","D"] if c in dff.columns]
+cols_plot = [c for c in ["S", "E", "I", "R", "D"] if c in dff.columns]
 
 fig = px.line(
     dff,
@@ -118,6 +151,7 @@ fig = px.line(
 fig.update_layout(
     template="plotly_white",
     title_font=dict(size=22),
+    xaxis=dict(type="category"),  # garante todas as datas
     legend=dict(
         orientation="h",
         y=-0.25,
@@ -129,7 +163,7 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # ------------------------------------------------------------
-# TABELA FINAL
+# TABELA NUMÉRICA
 # ------------------------------------------------------------
 
 with st.expander("📄 VER DADOS NUMÉRICOS"):
@@ -145,11 +179,12 @@ with st.expander("📄 VER DADOS NUMÉRICOS"):
 st.subheader("📥 EXPORTAÇÃO")
 
 csv = dff[["DATA"] + cols_plot].to_csv(index=False).encode("utf-8")
+
 st.download_button(
-    "BAIXAR RESULTADOS (CSV)",
-    csv,
+    label="BAIXAR RESULTADOS (CSV)",
+    data=csv,
     file_name=f"{sel_muni}_{sel_modelo}_simulacao.csv",
     mime="text/csv"
 )
 
-st.caption("Dashboard otimizado com cache epidemiológico pré-processado.")
+st.caption("Dashboard epidemiológico otimizado com cache pré-processado.")
