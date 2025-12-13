@@ -31,6 +31,7 @@ def read_parquet_safe(path: Path):
 def format_plot_br(fig):
     fig.update_xaxes(
         tickformat="%d/%m/%Y",
+        title="DATA",
         title_font=dict(size=16),
         tickfont=dict(size=12)
     )
@@ -107,7 +108,8 @@ def main():
         "PERÍODO DE ANÁLISE",
         [min_date, max_date],
         min_value=min_date,
-        max_value=max_date
+        max_value=max_date,
+        format="DD/MM/YYYY"   # 🇧🇷 FORMATO BRASILEIRO
     )
 
     ini = pd.to_datetime(ini)
