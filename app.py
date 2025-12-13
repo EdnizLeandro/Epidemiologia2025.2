@@ -1,6 +1,5 @@
-# ============================================================
+
 # DASHBOARD COVID-PE — DADOS EPIDEMIOLÓGICOS + MODELO SEIR
-# ============================================================
 
 import streamlit as st
 import pandas as pd
@@ -8,9 +7,8 @@ import plotly.express as px
 import numpy as np
 from pathlib import Path
 
-# ------------------------------
 # CONFIGURAÇÕES GERAIS
-# ------------------------------
+
 BASE_DIR = Path(__file__).parent
 DATA_PARQUET = BASE_DIR / "covid_pe_seir_ready.parquet"
 
@@ -19,7 +17,7 @@ st.set_page_config(
     page_title="COVID-PE Dashboard + Modelo SEIR"
 )
 
-st.title("📊 DASHBOARD COVID-PE — DADOS EPIDEMIOLÓGICOS + MODELO SEIR")
+st.title("📊 DASHBOARD COVID-PE - DADOS EPIDEMIOLÓGICOS + MODELO SEIR")
 
 # Paleta de cores
 COLOR_PRIMARY = "#1f77b4"
@@ -44,10 +42,8 @@ def apply_plot_styling(fig):
     )
     return fig
 
-
-# ------------------------------
 # CARREGAR DADOS
-# ------------------------------
+
 @st.cache_data
 def load_data():
     if not DATA_PARQUET.exists():
@@ -61,9 +57,8 @@ def load_data():
 
 df = load_data()
 
-# ------------------------------
 # SIDEBAR — FILTROS
-# ------------------------------
+
 st.sidebar.header("🔎 FILTROS")
 
 munis = sorted(df["municipio"].dropna().unique())
@@ -91,9 +86,8 @@ gamma = st.sidebar.slider("γ — Taxa de recuperação", 0.01, 1.0, 1/7, 0.01)
 init_days = st.sidebar.number_input("Dias p/ estimar I₀", 1, 60, 7)
 run_seir = st.sidebar.button("▶ RODAR SIMULAÇÃO SEIR")
 
-# ------------------------------
 # FILTRAR BASE
-# ------------------------------
+
 mask = (df["date"] >= start_date) & (df["date"] <= end_date)
 dff = df[mask].copy()
 
@@ -104,9 +98,8 @@ if dff.empty:
     st.warning("Nenhum dado disponível para os filtros selecionados.")
     st.stop()
 
-# ------------------------------
 # RESUMO
-# ------------------------------
+
 st.header(f"📌 RESUMO — {sel_muni.upper() if sel_muni != 'Todos' else 'ESTADO DE PERNAMBUCO'}")
 
 c1, c2, c3 = st.columns(3)
@@ -115,9 +108,8 @@ c1.metric("CASOS NOVOS", int(dff["new_cases"].sum()))
 c2.metric("PICO DIÁRIO", int(dff["new_cases"].max()))
 c3.metric("POPULAÇÃO", int(dff["population"].median()))
 
-# ============================================================
+
 # 📊 GRÁFICOS — DADOS OBSERVADOS
-# ============================================================
 
 st.subheader("📈 CASOS DIÁRIOS E MÉDIA MÓVEL (7 DIAS)")
 fig = px.line(
@@ -171,9 +163,7 @@ fig = px.line(
 )
 st.plotly_chart(apply_plot_styling(fig), use_container_width=True)
 
-# ============================================================
 # 🧮 MODELO SEIR
-# ============================================================
 
 def run_seir_simulation(N, E0, I0, R0, beta, sigma, gamma, days):
     S0 = N - E0 - I0 - R0
@@ -200,7 +190,7 @@ if run_seir:
 
     sim = run_seir_simulation(N, E0, I0, R0, beta, sigma, gamma, 180)
 
-    st.subheader("📉 SIMULAÇÃO SEIR — VALORES ABSOLUTOS")
+    st.subheader("📉 SIMULAÇÃO SEIR - VALORES ABSOLUTOS")
     fig = px.line(
         sim,
         x="date",
@@ -209,7 +199,7 @@ if run_seir:
     )
     st.plotly_chart(apply_plot_styling(fig), use_container_width=True)
 
-    st.subheader("📊 SIMULAÇÃO SEIR — PROPORÇÃO DA POPULAÇÃO (%)")
+    st.subheader("📊 SIMULAÇÃO SEIR - PROPORÇÃO DA POPULAÇÃO (%)")
     sim_pct = sim.copy()
     for c in ["S", "E", "I", "R"]:
         sim_pct[c] = 100 * sim_pct[c] / N
