@@ -1,5 +1,6 @@
 # ============================================================
-# COVID-PE — APP ROBUSTO (NUNCA FECHA SEM MOSTRAR ERRO)
+# COVID-PE — DADOS REAIS + MODELOS EPIDEMIOLÓGICOS
+# VERSÃO DEFINITIVA (ROBUSTA / CLOUD SAFE)
 # ============================================================
 
 import streamlit as st
@@ -18,19 +19,27 @@ DATA_REAL = BASE_DIR / "covid_pe_seir_ready.parquet"
 DATA_MODEL = BASE_DIR / "cache.parquet"
 
 
+def read_parquet_safe(path: Path):
+    """Leitura defensiva de parquet (evita crash silencioso)."""
+    try:
+        return pd.read_parquet(path, engine="pyarrow")
+    except Exception:
+        return pd.read_parquet(path, engine="fastparquet")
+
+
 def main():
     # --------------------------------------------------------
-    # CONFIG DO APP
+    # APP CONFIG
     # --------------------------------------------------------
     st.set_page_config(
         page_title="COVID-PE | Dados Reais e Modelos",
         layout="wide"
     )
 
-    st.title("📊 COVID-19 EM PERNAMBUCO — DADOS REAIS E MODELOS")
+    st.title("📊 COVID-19 EM PERNAMBUCO — DADOS REAIS E MODELOS EPIDEMIOLÓGICOS")
 
     # --------------------------------------------------------
-    # LOADERS (SEM CACHE DE PROPÓSITO PARA DEBUG)
+    # VERIFICAÇÃO DE ARQUIVOS
     # --------------------------------------------------------
     if not DATA_REAL.exists():
         st.error(f"Arquivo NÃO encontrado: {DATA_REAL}")
@@ -40,10 +49,15 @@ def main():
         st.error(f"Arquivo NÃO encontrado: {DATA_MODEL}")
         st.stop()
 
-    df_real = pd.read_parquet(DATA_REAL)
-    df_model = pd.read_parquet(DATA_MODEL)
+    # --------------------------------------------------------
+    # LOAD DADOS (SEM CACHE PARA DEBUG)
+    # --------------------------------------------------------
+    df_real = read_parquet_safe(DATA_REAL)
+    df_model = read_parquet_safe(DATA_MODEL)
 
-    # Normalização pesada (EVITA 90% DOS CRASHES)
+    # --------------------------------------------------------
+    # NORMALIZAÇÃO (EVITA 90% DOS ERROS)
+    # --------------------------------------------------------
     df_real["date"] = pd.to_datetime(df_real["date"], errors="coerce")
     df_model["date"] = pd.to_datetime(df_model["date"], errors="coerce")
 
@@ -59,8 +73,10 @@ def main():
     # --------------------------------------------------------
     st.sidebar.header("🎛️ CONTROLES")
 
-    municipios = sorted(set(df_real["municipio"]).intersection(df_model["municipio"]))
-    municipios = ["TODOS"] + municipios
+    municipios_validos = sorted(
+        set(df_real["municipio"]).intersection(df_model["municipio"])
+    )
+    municipios = ["TODOS"] + municipios_validos
     modelos = sorted(df_model["modelo"].unique())
 
     sel_muni = st.sidebar.selectbox("MUNICÍPIO", municipios)
@@ -80,7 +96,7 @@ def main():
     fim = pd.to_datetime(fim)
 
     # --------------------------------------------------------
-    # FILTRAGEM
+    # FILTRAGEM SEGURA
     # --------------------------------------------------------
     real = df_real[(df_real["date"] >= ini) & (df_real["date"] <= fim)]
     model = df_model[(df_model["date"] >= ini) & (df_model["date"] <= fim)]
@@ -92,7 +108,7 @@ def main():
     model = model[model["modelo"] == sel_modelo]
 
     # --------------------------------------------------------
-    # VALIDADORES (IMPEDem FECHAMENTO)
+    # CHECAGENS
     # --------------------------------------------------------
     if real.empty:
         st.warning("⚠️ Dados REAIS vazios após filtros.")
@@ -107,29 +123,61 @@ def main():
     # --------------------------------------------------------
     tab1, tab2, tab3 = st.tabs([
         "📊 DADOS OBSERVADOS",
-        "🧮 MODELOS",
-        "⚖️ COMPARAÇÃO"
+        "🧮 MODELOS EPIDEMIOLÓGICOS",
+        "⚖️ REAL × MODELO"
     ])
 
-    # ---------------- TAB 1 ----------------
+    # ================= TAB 1 =================
     with tab1:
+        st.subheader("CASOS DIÁRIOS E MÉDIA MÓVEL")
         if {"new_cases", "ma7"}.issubset(real.columns):
-            st.subheader("CASOS DIÁRIOS E MÉDIA MÓVEL")
-            st.plotly_chart(px.line(real, x="date", y=["new_cases", "ma7"]), True)
+            st.plotly_chart(
+                px.line(real, x="date", y=["new_cases", "ma7"]),
+                use_container_width=True
+            )
         else:
-            st.info("Colunas new_cases / ma7 ausentes.")
+            st.info("Colunas new_cases / ma7 não disponíveis.")
 
-    # ---------------- TAB 2 ----------------
+        st.subheader("CASOS ACUMULADOS")
+        if "cum_cases" in real.columns:
+            st.plotly_chart(
+                px.line(real, x="date", y="cum_cases"),
+                use_container_width=True
+            )
+
+        st.subheader("INFECTANTES ESTIMADOS (I_EST)")
+        if "I_est" in real.columns:
+            st.plotly_chart(
+                px.line(real, x="date", y="I_est"),
+                use_container_width=True
+            )
+
+    # ================= TAB 2 =================
     with tab2:
-        comps = [c for c in ["S", "E", "I", "R", "D", "V"] if c in model.columns]
+        st.subheader(f"MODELO {sel_modelo}")
 
-        if comps:
-            st.subheader(f"MODELO {sel_modelo}")
-            st.plotly_chart(px.line(model, x="date", y=comps), True)
+        compartimentos = [c for c in ["S", "E", "I", "R", "D", "V"] if c in model.columns]
+
+        if not compartimentos:
+            st.warning("Modelo não possui compartimentos.")
         else:
-            st.warning("Modelo sem compartimentos.")
+            st.plotly_chart(
+                px.line(model, x="date", y=compartimentos),
+                use_container_width=True
+            )
 
-    # ---------------- TAB 3 ----------------
+            total = model[compartimentos].sum(axis=1)
+            model_pct = model.copy()
+            for c in compartimentos:
+                model_pct[c] = 100 * model[c] / total
+
+            st.subheader("PROPORÇÃO DA POPULAÇÃO (%)")
+            st.plotly_chart(
+                px.area(model_pct, x="date", y=compartimentos),
+                use_container_width=True
+            )
+
+    # ================= TAB 3 =================
     with tab3:
         if "I_est" in real.columns and "I" in model.columns:
             comp = pd.merge(
@@ -139,21 +187,24 @@ def main():
                 how="inner"
             )
 
-            if not comp.empty:
-                st.subheader("INFECTANTES — REAL × MODELO")
-                st.plotly_chart(px.line(comp, x="date", y=["I_est", "I"]), True)
+            if comp.empty:
+                st.warning("Sem interseção temporal para comparação.")
             else:
-                st.warning("Sem datas em comum.")
+                st.subheader("INFECTANTES — REAL × MODELO")
+                st.plotly_chart(
+                    px.line(comp, x="date", y=["I_est", "I"]),
+                    use_container_width=True
+                )
         else:
-            st.info("Comparação indisponível.")
+            st.info("Comparação indisponível para este modelo.")
 
 
-# ============================================================
-# BLOCO GLOBAL — NUNCA DEIXA O APP FECHAR
-# ============================================================
+# ------------------------------------------------------------
+# BLOCO GLOBAL — IMPEDE FECHAMENTO SILENCIOSO
+# ------------------------------------------------------------
 try:
     main()
 
-except Exception as e:
-    st.error("❌ ERRO CRÍTICO — O APP NÃO FOI FINALIZADO")
+except Exception:
+    st.error("❌ ERRO CRÍTICO — TRACEBACK COMPLETO ABAIXO")
     st.code(traceback.format_exc())
