@@ -18,17 +18,33 @@ BASE_DIR = Path(__file__).parent
 DATA_REAL = BASE_DIR / "covid_pe_seir_ready.parquet"
 DATA_MODEL = BASE_DIR / "cache.parquet"
 
-COLOR_PRIMARY = "#1f77b4"
-COLOR_SECONDARY = "#17becf"
-COLOR_TREND = "#ff7f0e"
-COLOR_GRAY = "#7f7f7f"
-
-
+# ------------------------------------------------------------
+# FUNÇÕES AUXILIARES
+# ------------------------------------------------------------
 def read_parquet_safe(path: Path):
     try:
         return pd.read_parquet(path, engine="pyarrow")
     except Exception:
         return pd.read_parquet(path, engine="fastparquet")
+
+
+def format_plot_br(fig):
+    fig.update_xaxes(
+        tickformat="%d/%m/%Y",
+        title_font=dict(size=16),
+        tickfont=dict(size=12)
+    )
+    fig.update_yaxes(
+        title_font=dict(size=16),
+        tickfont=dict(size=12)
+    )
+    fig.update_layout(
+        template="plotly_white",
+        title_font=dict(size=22),
+        font=dict(size=14),
+        legend_title_text=""
+    )
+    return fig
 
 
 # ------------------------------------------------------------
@@ -37,21 +53,21 @@ def read_parquet_safe(path: Path):
 def main():
 
     st.set_page_config(
-        page_title="COVID-PE | Modelos Epidemiológicos",
+        page_title="COVID-PE | MODELOS EPIDEMIOLÓGICOS",
         layout="wide"
     )
 
-    st.title("📊 COVID-19 EM PERNAMBUCO — DADOS E MODELOS")
+    st.title("📊 COVID-19 EM PERNAMBUCO — DADOS E MODELOS EPIDEMIOLÓGICOS")
 
     # --------------------------------------------------------
     # VERIFICAÇÃO DE ARQUIVOS
     # --------------------------------------------------------
     if not DATA_REAL.exists():
-        st.error("Arquivo covid_pe_seir_ready.parquet não encontrado.")
+        st.error("ARQUIVO covid_pe_seir_ready.parquet NÃO ENCONTRADO.")
         st.stop()
 
     if not DATA_MODEL.exists():
-        st.error("Arquivo cache.parquet não encontrado.")
+        st.error("ARQUIVO cache.parquet NÃO ENCONTRADO.")
         st.stop()
 
     # --------------------------------------------------------
@@ -82,13 +98,13 @@ def main():
     modelos = sorted(df_model["modelo"].unique())
 
     sel_muni = st.sidebar.selectbox("MUNICÍPIO", municipios)
-    sel_modelo = st.sidebar.selectbox("MODELO", modelos)
+    sel_modelo = st.sidebar.selectbox("MODELO EPIDEMIOLÓGICO", modelos)
 
     min_date = df_real["date"].min().date()
     max_date = df_real["date"].max().date()
 
     ini, fim = st.sidebar.date_input(
-        "PERÍODO",
+        "PERÍODO DE ANÁLISE",
         [min_date, max_date],
         min_value=min_date,
         max_value=max_date
@@ -98,7 +114,7 @@ def main():
     fim = pd.to_datetime(fim)
 
     # --------------------------------------------------------
-    # DADOS OBSERVADOS (AGREGAÇÃO CORRETA)
+    # DADOS OBSERVADOS
     # --------------------------------------------------------
     real = df_real[(df_real["date"] >= ini) & (df_real["date"] <= fim)]
 
@@ -116,7 +132,7 @@ def main():
         real = real[real["municipio"] == sel_muni]
 
     # --------------------------------------------------------
-    # DADOS DOS MODELOS (AGREGAÇÃO CORRETA)
+    # DADOS DOS MODELOS
     # --------------------------------------------------------
     model = df_model[
         (df_model["date"] >= ini) &
@@ -127,11 +143,7 @@ def main():
     compartimentos = [c for c in ["S", "E", "I", "R", "D", "V"] if c in model.columns]
 
     if sel_muni == "TODOS":
-        model = (
-            model
-            .groupby("date", as_index=False)[compartimentos]
-            .sum()
-        )
+        model = model.groupby("date", as_index=False)[compartimentos].sum()
     else:
         model = model[model["municipio"] == sel_muni]
 
@@ -140,15 +152,13 @@ def main():
     # --------------------------------------------------------
     tab1, tab2, tab3 = st.tabs([
         "📊 DADOS OBSERVADOS",
-        "🧮 MODELOS",
+        "🧮 MODELOS EPIDEMIOLÓGICOS",
         "⚖️ OBSERVADO × MODELO"
     ])
 
     # ================= TAB 1 =================
     with tab1:
-        st.subheader("CASOS OBSERVADOS")
-
-        fig = px.line(
+        fig1 = px.line(
             real,
             x="date",
             y=["new_cases", "I_est"],
@@ -157,26 +167,34 @@ def main():
                 "value": "NÚMERO DE CASOS",
                 "variable": "SÉRIE"
             },
-            title="CASOS OBSERVADOS — PERNAMBUCO" if sel_muni == "TODOS"
-                  else f"CASOS OBSERVADOS — {sel_muni}"
+            title=(
+                "CASOS OBSERVADOS — ESTADO DE PERNAMBUCO"
+                if sel_muni == "TODOS"
+                else f"CASOS OBSERVADOS — {sel_muni}"
+            )
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(format_plot_br(fig1), width="stretch")
 
-        st.subheader("CASOS ACUMULADOS")
         fig2 = px.line(
             real,
             x="date",
             y="cum_cases",
-            labels={"date": "DATA", "cum_cases": "CASOS ACUMULADOS"}
+            labels={
+                "date": "DATA",
+                "cum_cases": "CASOS ACUMULADOS"
+            },
+            title=(
+                "CASOS ACUMULADOS — ESTADO DE PERNAMBUCO"
+                if sel_muni == "TODOS"
+                else f"CASOS ACUMULADOS — {sel_muni}"
+            )
         )
-        st.plotly_chart(fig2, width="stretch")
+        st.plotly_chart(format_plot_br(fig2), width="stretch")
 
     # ================= TAB 2 =================
     with tab2:
-        st.subheader(f"MODELO {sel_modelo}")
-
         if compartimentos:
-            fig = px.line(
+            fig3 = px.line(
                 model,
                 x="date",
                 y=compartimentos,
@@ -184,29 +202,30 @@ def main():
                     "date": "DATA",
                     "value": "POPULAÇÃO",
                     "variable": "COMPARTIMENTO"
-                }
+                },
+                title=f"MODELO {sel_modelo} — EVOLUÇÃO TEMPORAL"
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(format_plot_br(fig3), width="stretch")
 
             model_pct = model.copy()
             total = model_pct[compartimentos].sum(axis=1)
             for c in compartimentos:
                 model_pct[c] = 100 * model_pct[c] / total
 
-            st.subheader("PROPORÇÃO DA POPULAÇÃO (%)")
-            fig_area = px.area(
+            fig4 = px.area(
                 model_pct,
                 x="date",
                 y=compartimentos,
                 labels={
                     "date": "DATA",
-                    "value": "PERCENTUAL (%)",
+                    "value": "PERCENTUAL DA POPULAÇÃO (%)",
                     "variable": "COMPARTIMENTO"
-                }
+                },
+                title=f"MODELO {sel_modelo} — PROPORÇÃO DA POPULAÇÃO"
             )
-            st.plotly_chart(fig_area, width="stretch")
+            st.plotly_chart(format_plot_br(fig4), width="stretch")
         else:
-            st.warning("Modelo não possui compartimentos disponíveis.")
+            st.warning("MODELO SEM COMPARTIMENTOS DISPONÍVEIS.")
 
     # ================= TAB 3 =================
     with tab3:
@@ -218,7 +237,7 @@ def main():
                 how="inner"
             )
 
-            fig = px.line(
+            fig5 = px.line(
                 comp,
                 x="date",
                 y=["I_est", "I"],
@@ -227,11 +246,11 @@ def main():
                     "value": "INFECTANTES",
                     "variable": "SÉRIE"
                 },
-                title="INFECTANTES — OBSERVADO × MODELO"
+                title="INFECTANTES — DADOS OBSERVADOS VS MODELO"
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(format_plot_br(fig5), width="stretch")
         else:
-            st.info("Comparação não disponível para este modelo.")
+            st.info("COMPARAÇÃO NÃO DISPONÍVEL PARA ESTE MODELO.")
 
 
 # ------------------------------------------------------------
@@ -240,5 +259,5 @@ def main():
 try:
     main()
 except Exception:
-    st.error("❌ ERRO CRÍTICO NO APP")
+    st.error("❌ ERRO CRÍTICO NO APLICATIVO")
     st.code(traceback.format_exc())
