@@ -3,7 +3,7 @@ pandas
 plotly
 pyarrow
 fastparquet
-numpyt
+numpy
 
 
 
