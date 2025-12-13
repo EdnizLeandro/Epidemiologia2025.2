@@ -9,7 +9,7 @@ Este repositório apresenta um **dashboard interativo em Streamlit** para análi
 
 O sistema permite visualizar **dados observados**, **projeções epidemiológicas** e a **comparação entre dados reais e modelos**, cobrindo **todo o período disponível nos arquivos**, sem cortes temporais implícitos.
 
-Site: https://epidemiologia20252-hsjay4nhebwduqnnkvnzks.streamlit.app/
+Site: https://sl1nk.com/epidemiologia20252
 
 ---
 
