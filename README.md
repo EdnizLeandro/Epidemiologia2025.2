@@ -1,6 +1,3 @@
-Perfeito. Abaixo está um **README.md completo, profissional e pronto para GitHub**, já no **formato padrão Markdown**, alinhado com **TCC, artigo científico e apresentação acadêmica**.
-
-Você pode **copiar e colar diretamente** no repositório.
 
 ---
 
