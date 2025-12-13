@@ -1,308 +1,155 @@
 # ============================================================
-#  SEIR SUITE — VERSÃO LEVE + CORRIGIDA
-#  MODELOS: SIR / SEIR / SEIRD / SEIRV
-#  AJUSTE: LEAST-SQUARES
-#  DATAS EM FORMATO BRASILEIRO
-#  TÍTULOS E EIXOS EM MAIÚSCULO
+#  DASHBOARD EPIDEMIOLÓGICO COVID-PE
+#  VISUALIZAÇÃO PROFISSIONAL A PARTIR DE CACHE
 # ============================================================
 
 import streamlit as st
 import pandas as pd
-import numpy as np
-from pathlib import Path
-from scipy.integrate import odeint
-from scipy.optimize import least_squares
 import plotly.express as px
-import plotly.graph_objects as go
-import base64
+from pathlib import Path
 
 # ------------------------------------------------------------
 # CONFIGURAÇÃO DO APP
 # ------------------------------------------------------------
 
-st.set_page_config(layout="wide", page_title="COVID-PE - MODELOS EPIDEMIOLÓGICOS (BR)")
+st.set_page_config(
+    page_title="COVID-PE | MODELOS EPIDEMIOLÓGICOS",
+    layout="wide"
+)
 
-st.title("🔬 MODELAGEM EPIDEMIOLÓGICA COVID19-PE  SIR / SEIR / SEIRD / SEIRV (BR)")
-
-
-# ------------------------------------------------------------
-# CAMINHOS DOS ARQUIVOS
-# ------------------------------------------------------------
-
-DEFAULT_PARQUET = Path(__file__).parent / "covid_pe_seir_ready.parquet"
-DEFAULT_CSV = Path(__file__).parent / "covid_pe_seir_ready.csv"
-
-
-# ------------------------------------------------------------
-# FUNÇÕES AUXILIARES
-# ------------------------------------------------------------
-
-def estilo(fig):
-    fig.update_layout(
-        template="plotly_white",
-        title_font=dict(size=22, color="#1f77b4"),
-        legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center"),
-        margin=dict(l=40, r=40, t=80, b=60),
-        xaxis_title="DATA",
-        yaxis_title="VALOR"
-    )
-    return fig
-
-
-def baixar(df, nome="export.csv"):
-    data = df.to_csv(index=False).encode("utf-8")
-    b64 = base64.b64encode(data).decode()
-    return f'<a download="{nome}" href="data:file/csv;base64,{b64}">📥 BAIXAR {nome}</a>'
-
+st.title("📊 COVID-19 EM PERNAMBUCO — MODELAGEM EPIDEMIOLÓGICA")
+st.markdown(
+    """
+    **Modelos disponíveis:** SIR, SEIR, SEIRD e SEIRV  
+    **Fonte:** Base epidemiológica tratada + simulações offline  
+    **Performance:** Cache pré-computado (parquet)
+    """
+)
 
 # ------------------------------------------------------------
-# ODEs DOS MODELOS
+# CARREGAR CACHE
 # ------------------------------------------------------------
 
-def sir_ode(y, t, beta, gamma, N):
-    S, I, R = y
-    return [
-        -beta*S*I/N,
-        beta*S*I/N - gamma*I,
-        gamma*I
-    ]
-
-def seir_ode(y, t, beta, sigma, gamma, N):
-    S, E, I, R = y
-    return [
-        -beta*S*I/N,
-        beta*S*I/N - sigma*E,
-        sigma*E - gamma*I,
-        gamma*I
-    ]
-
-def seird_ode(y, t, beta, sigma, gamma, mu, N):
-    S, E, I, R, D = y
-    return [
-        -beta*S*I/N,
-        beta*S*I/N - sigma*E,
-        sigma*E - gamma*I - mu*I,
-        gamma*I,
-        mu*I
-    ]
-
-def seirv_ode(y, t, beta, sigma, gamma, v, N):
-    S, E, I, R = y
-    return [
-        -beta*S*I/N - v*S,
-        beta*S*I/N - sigma*E,
-        sigma*E - gamma*I,
-        gamma*I + v*S
-    ]
-
-
-# ------------------------------------------------------------
-# CARREGAMENTO DO ARQUIVO
-# ------------------------------------------------------------
+CACHE_FILE = Path(__file__).parent / "cache.parquet"
 
 @st.cache_data
-def carregar(uploaded=None):
-    if uploaded is not None:
-        if uploaded.name.endswith(".parquet"):
-            df = pd.read_parquet(uploaded)
-        else:
-            df = pd.read_csv(uploaded)
-    else:
-        if DEFAULT_PARQUET.exists():
-            df = pd.read_parquet(DEFAULT_PARQUET)
-        else:
-            df = pd.read_csv(DEFAULT_CSV)
+def carregar_cache():
+    if not CACHE_FILE.exists():
+        st.error("Arquivo cache.parquet não encontrado. Execute gerar_cache.py primeiro.")
+        st.stop()
 
-    df.columns = [c.lower() for c in df.columns]
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df = df.dropna(subset=["date"])
-
-    # Datas BR
-    df["data_br"] = df["date"].dt.strftime("%d/%m/%Y")
-
-    # Estimar I_est se faltar
-    if "i_est" not in df.columns:
-        df = df.sort_values("date")
-        df["i_est"] = df["new_cases"].rolling(7, min_periods=1).sum()
-
-    if "r_est" not in df.columns:
-        df["r_est"] = 0
-
+    df = pd.read_parquet(CACHE_FILE)
+    df["date"] = pd.to_datetime(df["date"])
+    df["DATA"] = df["date"].dt.strftime("%d/%m/%Y")
     return df
 
-
-uploaded = st.sidebar.file_uploader("Upload opcional do DATASET (CSV ou PARQUET)", type=["csv","parquet"])
-df = carregar(uploaded)
-
-if df is None:
-    st.error("Nenhum arquivo encontrado.")
-    st.stop()
-
+df = carregar_cache()
 
 # ------------------------------------------------------------
-# FILTROS
+# SIDEBAR — CONTROLES
 # ------------------------------------------------------------
 
-munis = sorted(df["municipio"].dropna().unique()) if "municipio" in df.columns else []
-sel_muni = st.sidebar.selectbox("MUNICÍPIO", ["TODOS"] + munis)
+st.sidebar.header("🎛️ CONTROLES")
 
-dmin = df["date"].min().date()
-dmax = df["date"].max().date()
+municipios = sorted(df["municipio"].unique())
+modelos = sorted(df["modelo"].unique())
 
-ini, fim = st.sidebar.date_input("PERÍODO", [dmin, dmax])
+sel_muni = st.sidebar.selectbox("MUNICÍPIO", municipios)
+sel_modelo = st.sidebar.selectbox("MODELO EPIDEMIOLÓGICO", modelos)
 
-mask = (df["date"] >= pd.to_datetime(ini)) & (df["date"] <= pd.to_datetime(fim))
+datas = sorted(df["date"].unique())
+ini, fim = st.sidebar.date_input(
+    "PERÍODO",
+    [datas[0], datas[-1]],
+    min_value=datas[0],
+    max_value=datas[-1]
+)
+
+# ------------------------------------------------------------
+# FILTRAGEM
+# ------------------------------------------------------------
+
+mask = (
+    (df["municipio"] == sel_muni) &
+    (df["modelo"] == sel_modelo) &
+    (df["date"] >= pd.to_datetime(ini)) &
+    (df["date"] <= pd.to_datetime(fim))
+)
+
 dff = df[mask].copy()
 
-if sel_muni != "TODOS":
-    dff = dff[dff["municipio"] == sel_muni]
-
 if dff.empty:
-    st.error("SEM DADOS PARA O FILTRO SELECIONADO.")
+    st.warning("NENHUM DADO PARA OS FILTROS SELECIONADOS.")
     st.stop()
 
-
 # ------------------------------------------------------------
-# PARÂMETROS
-# ------------------------------------------------------------
-
-st.sidebar.header("PARÂMETROS DO MODELO")
-
-modelo = st.sidebar.selectbox("MODELO", ["SIR","SEIR","SEIRD","SEIRV"])
-
-beta0 = st.sidebar.slider("BETA (β)", 0.0, 2.0, 0.6)
-sigma0 = st.sidebar.slider("SIGMA (σ)", 0.01, 1.0, 0.2)
-gamma0 = st.sidebar.slider("GAMMA (γ)", 0.01, 1.0, 0.14)
-mu0 = st.sidebar.slider("MU (μ) — MORTALIDADE", 0.0, 0.2, 0.01)
-v0 = st.sidebar.slider("TAXA DE VACINAÇÃO (v)", 0.0, 0.1, 0.0)
-
-init_days = st.sidebar.number_input("DIAS PARA I0", 1, 60, 7)
-
-botao = st.sidebar.button("▶ RODAR AJUSTE + SIMULAÇÃO")
-
-
-# ------------------------------------------------------------
-# ESTIMAR I0, E0, S0, R0
+# VISÃO GERAL
 # ------------------------------------------------------------
 
-last = dff.sort_values("date").tail(init_days)
+st.subheader("📌 VISÃO GERAL DA SIMULAÇÃO")
 
-I0 = int(max(last["new_cases"].sum(), 1))
+col1, col2, col3, col4 = st.columns(4)
 
-E0 = int(max(dff.tail(int(1/sigma0))["new_cases"].sum(), I0*2))
-
-R0 = int(dff["r_est"].iloc[-1])
-
-N = int(dff["population"].median())
-
-S0 = max(N - E0 - I0 - R0, 0)
-
-st.write(f"**COND. INICIAIS:** S0={S0}, E0={E0}, I0={I0}, R0={R0}")
-
+col1.metric("MUNICÍPIO", sel_muni)
+col2.metric("MODELO", sel_modelo)
+col3.metric("DATA INICIAL", dff["DATA"].iloc[0])
+col4.metric("DATA FINAL", dff["DATA"].iloc[-1])
 
 # ------------------------------------------------------------
-# GRÁFICO DOS CASOS OBSERVADOS
+# GRÁFICO PRINCIPAL
 # ------------------------------------------------------------
 
-st.subheader("📈 CASOS OBSERVADOS (BR)")
+st.subheader("📉 EVOLUÇÃO DOS COMPARTIMENTOS")
 
-fig_obs = px.line(
-    dff.sort_values("date"),
-    x="data_br",
-    y=["new_cases","i_est","r_est"],
-    labels={"value":"VALOR","variable":"VARIÁVEL","data_br":"DATA"},
-    title="CASOS OBSERVADOS"
+cols_plot = [c for c in ["S","E","I","R","D"] if c in dff.columns]
+
+fig = px.line(
+    dff,
+    x="DATA",
+    y=cols_plot,
+    labels={
+        "value": "POPULAÇÃO",
+        "DATA": "DATA",
+        "variable": "COMPARTIMENTO"
+    },
+    title=f"MODELO {sel_modelo} — {sel_muni}"
 )
-st.plotly_chart(estilo(fig_obs), use_container_width=True)
 
+fig.update_layout(
+    template="plotly_white",
+    title_font=dict(size=22),
+    legend=dict(
+        orientation="h",
+        y=-0.25,
+        x=0.5,
+        xanchor="center"
+    )
+)
 
-# ------------------------------------------------------------
-# AJUSTE — LEAST SQUARES
-# ------------------------------------------------------------
-
-y_obs = dff.sort_values("date")["i_est"].values
-t_obs = np.arange(len(y_obs))
-
-def ajustar():
-    if modelo == "SIR":
-        def resid(p):
-            b, g = p
-            sol = odeint(lambda y,t: sir_ode(y,t,b,g,N), [S0,I0,R0], t_obs)
-            return sol[:,1] - y_obs
-        x0 = [beta0, gamma0]
-        bounds = ([0,0.001],[5,1])
-
-    elif modelo == "SEIR":
-        def resid(p):
-            b,s,g = p
-            sol = odeint(lambda y,t: seir_ode(y,t,b,s,g,N), [S0,E0,I0,R0], t_obs)
-            return sol[:,2] - y_obs
-        x0 = [beta0,sigma0,gamma0]
-        bounds = ([0,0.001,0.001],[5,1,1])
-
-    elif modelo == "SEIRD":
-        def resid(p):
-            b,s,g,m = p
-            sol = odeint(lambda y,t: seird_ode(y,t,b,s,g,m,N), [S0,E0,I0,R0,0], t_obs)
-            return sol[:,2] - y_obs
-        x0 = [beta0,sigma0,gamma0,mu0]
-        bounds = ([0,0.001,0.001,0],[5,1,1,0.5])
-
-    else: # SEIRV
-        def resid(p):
-            b,s,g,v = p
-            sol = odeint(lambda y,t: seirv_ode(y,t,b,s,g,v,N), [S0,E0,I0,R0], t_obs)
-            return sol[:,2] - y_obs
-        x0 = [beta0,sigma0,gamma0,v0]
-        bounds = ([0,0.001,0.001,0],[5,1,1,0.2])
-
-    return least_squares(resid, x0, bounds=bounds, max_nfev=50000).x
-
+st.plotly_chart(fig, use_container_width=True)
 
 # ------------------------------------------------------------
-# EXECUÇÃO
+# TABELA FINAL
 # ------------------------------------------------------------
 
-if botao:
-
-    params = ajustar()
-    st.success(f"PARÂMETROS AJUSTADOS: {params}")
-
-    # ---------------- PROJEÇÃO -----------------
-    dias = st.slider("DIAS PARA PROJEÇÃO", 30, 720, 180)
-    t = np.arange(dias)
-
-    if modelo == "SIR":
-        sol = odeint(lambda y,t: sir_ode(y,t,*params,N), [S0,I0,R0], t)
-        cols = ["S","I","R"]
-
-    elif modelo == "SEIR":
-        sol = odeint(lambda y,t: seir_ode(y,t,*params,N), [S0,E0,I0,R0], t)
-        cols = ["S","E","I","R"]
-
-    elif modelo == "SEIRD":
-        sol = odeint(lambda y,t: seird_ode(y,t,*params,N), [S0,E0,I0,R0,0], t)
-        cols = ["S","E","I","R","D"]
-
-    else:
-        sol = odeint(lambda y,t: seirv_ode(y,t,*params,N), [S0,E0,I0,R0], t)
-        cols = ["S","E","I","R"]
-
-    proj = pd.DataFrame(sol, columns=cols)
-    proj["DATA"] = pd.date_range(dff["date"].max(), periods=dias, freq="D").strftime("%d/%m/%Y")
-
-    st.subheader("📉 PROJEÇÃO FUTURA (BR)")
-
-    fig_proj = px.line(
-        proj,
-        x="DATA",
-        y=cols,
-        title="PROJEÇÃO FUTURA",
-        labels={"DATA":"DATA"}
+with st.expander("📄 VER DADOS NUMÉRICOS"):
+    st.dataframe(
+        dff[["DATA"] + cols_plot].reset_index(drop=True),
+        use_container_width=True
     )
 
-    st.plotly_chart(estilo(fig_proj), use_container_width=True)
+# ------------------------------------------------------------
+# DOWNLOAD
+# ------------------------------------------------------------
 
-    # download
-    st.markdown(baixar(proj, f"projecao_{modelo}.csv"), unsafe_allow_html=True)
+st.subheader("📥 EXPORTAÇÃO")
 
+csv = dff[["DATA"] + cols_plot].to_csv(index=False).encode("utf-8")
+st.download_button(
+    "BAIXAR RESULTADOS (CSV)",
+    csv,
+    file_name=f"{sel_muni}_{sel_modelo}_simulacao.csv",
+    mime="text/csv"
+)
+
+st.caption("Dashboard otimizado com cache epidemiológico pré-processado.")
