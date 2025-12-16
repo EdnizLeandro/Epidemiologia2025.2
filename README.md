@@ -20,7 +20,7 @@ Os dados utilizados neste projeto foram obtidos a partir de bases oficiais do Mi
 * [https://covid.saude.gov.br/](https://covid.saude.gov.br/)
 * [https://opendatasus.saude.gov.br/dataset/?tags=covid-19](https://opendatasus.saude.gov.br/dataset/?tags=covid-19)
 
-Os dados foram **pré-processados, filtrados e agregados**, mantendo apenas registros referentes ao **estado de Pernambuco (PE)**.
+Os dados foram **pré-processados e filtrados**, mantendo apenas registros referentes ao **estado de Pernambuco (PE)**.
 
 ---
 
@@ -58,12 +58,13 @@ Base de dados **pré-processada**, contendo exclusivamente registros do **estado
 
 **Principais variáveis:**
 
-* `date` – Data do registro
-* `municipio` – Município de Pernambuco
-* `new_cases` – Casos novos diários (incidência)
-* `cum_cases` – Casos acumulados
-* `I_est` – Estimativa de indivíduos infectantes
-* `population` – População estimada
+* `date` - Data do registro
+* `municipio` - Município de Pernambuco
+* `new_cases` - Casos novos diários (incidência)
+* `cum_cases` - Casos acumulados
+* `I_est` - Estimativa de indivíduos infectantes
+* `population` - População estimada
+* `I` - é pessoas infecciosas
 
 ---
 
