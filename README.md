@@ -64,7 +64,7 @@ Base de dados **pré-processada**, contendo exclusivamente registros do **estado
 * `cum_cases` - Casos acumulados
 * `I_est` - Estimativa de indivíduos infectantes
 * `population` - População estimada
-* `I` - é pessoas infecciosas
+* `I` - Pessoas infecciosas
 
 ---
 
