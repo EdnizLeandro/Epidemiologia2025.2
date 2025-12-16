@@ -49,16 +49,6 @@ def format_plot_br(fig):
 
 
 # ------------------------------------------------------------
-# MAPA DE COMPARTIMENTOS POR MODELO (CORREÇÃO SEIRD)
-# ------------------------------------------------------------
-MAP_MODELOS = {
-    "SIR":   ["S", "I", "R"],
-    "SEIR":  ["S", "E", "I", "R"],
-    "SEIRD": ["S", "E", "I", "R", "D"],
-    "SEIRV": ["S", "E", "I", "R", "V"]
-}
-
-# ------------------------------------------------------------
 # APP PRINCIPAL
 # ------------------------------------------------------------
 def main():
@@ -68,7 +58,7 @@ def main():
         layout="wide"
     )
 
-    st.title("📊 COVID-19 EM PERNAMBUCO - DADOS E MODELOS EPIDEMIOLÓGICOS")
+    st.title("📊 COVID-19 EM PERNAMBUCO — DADOS E MODELOS EPIDEMIOLÓGICOS")
 
     # --------------------------------------------------------
     # VERIFICAÇÃO DE ARQUIVOS
@@ -111,25 +101,14 @@ def main():
     sel_muni = st.sidebar.selectbox("MUNICÍPIO", municipios)
     sel_modelo = st.sidebar.selectbox("MODELO EPIDEMIOLÓGICO", modelos)
 
-    # 👉 TODO O PERÍODO DOS ARQUIVOS
-    min_date = min(df_real["date"].min(), df_model["date"].min()).date()
-    max_date = max(df_real["date"].max(), df_model["date"].max()).date()
-
-    ini, fim = st.sidebar.date_input(
-        "PERÍODO DE ANÁLISE",
-        [min_date, max_date],
-        min_value=min_date,
-        max_value=max_date,
-        format="DD/MM/YYYY"
-    )
-
-    ini = pd.to_datetime(ini)
-    fim = pd.to_datetime(fim)
+    # 🔹 USAR TODO O PERÍODO DISPONÍVEL
+    ini = df_real["date"].min()
+    fim = df_real["date"].max()
 
     # --------------------------------------------------------
     # DADOS OBSERVADOS
     # --------------------------------------------------------
-    real = df_real[(df_real["date"] >= ini) & (df_real["date"] <= fim)]
+    real = df_real.copy()
 
     if sel_muni == "TODOS":
         real = (
@@ -145,30 +124,16 @@ def main():
         real = real[real["municipio"] == sel_muni]
 
     # --------------------------------------------------------
-    # DADOS DOS MODELOS (CORRIGIDO)
+    # DADOS DOS MODELOS
     # --------------------------------------------------------
-    model = df_model[
-        (df_model["date"] >= ini) &
-        (df_model["date"] <= fim) &
-        (df_model["modelo"] == sel_modelo)
-    ]
+    model = df_model[df_model["modelo"] == sel_modelo]
 
-    compartimentos = MAP_MODELOS.get(sel_modelo, [])
-
-    # GARANTE TODAS AS COLUNAS (SEIRD NÃO SOME)
-    for c in compartimentos:
-        if c not in model.columns:
-            model[c] = 0.0
+    compartimentos = [c for c in ["S", "E", "I", "R", "D", "V"] if c in model.columns]
 
     if sel_muni == "TODOS":
-        model = (
-            model
-            .groupby("date", as_index=False)
-            .agg({c: "sum" for c in compartimentos})
-        )
+        model = model.groupby("date", as_index=False)[compartimentos].sum()
     else:
         model = model[model["municipio"] == sel_muni]
-        model = model[["date"] + compartimentos]
 
     # --------------------------------------------------------
     # ABAS
@@ -191,7 +156,7 @@ def main():
                 "variable": "SÉRIE"
             },
             title=(
-                "CASOS OBSERVADOS - ESTADO DE PERNAMBUCO"
+                "CASOS OBSERVADOS — ESTADO DE PERNAMBUCO"
                 if sel_muni == "TODOS"
                 else f"CASOS OBSERVADOS — {sel_muni}"
             )
@@ -216,7 +181,16 @@ def main():
 
     # ================= TAB 2 =================
     with tab2:
+
         if compartimentos:
+
+            st.subheader("📈 EVOLUÇÃO TEMPORAL — VALORES ABSOLUTOS")
+
+            usar_log = st.checkbox(
+                "USAR ESCALA LOGARÍTMICA (RECOMENDADO PARA VISUALIZAR E)",
+                value=False
+            )
+
             fig3 = px.line(
                 model,
                 x="date",
@@ -226,9 +200,18 @@ def main():
                     "value": "POPULAÇÃO",
                     "variable": "COMPARTIMENTO"
                 },
-                title=f"MODELO {sel_modelo} - EVOLUÇÃO TEMPORAL"
+                title=f"MODELO {sel_modelo} — VALORES ABSOLUTOS"
             )
+
+            if usar_log:
+                fig3.update_yaxes(type="log")
+
             st.plotly_chart(format_plot_br(fig3), width="stretch")
+
+            # ------------------------------------------------
+            # NORMALIZAÇÃO (%)
+            # ------------------------------------------------
+            st.subheader("📊 DISTRIBUIÇÃO PERCENTUAL DA POPULAÇÃO")
 
             model_pct = model.copy()
             total = model_pct[compartimentos].sum(axis=1)
@@ -245,9 +228,11 @@ def main():
                     "value": "PERCENTUAL DA POPULAÇÃO (%)",
                     "variable": "COMPARTIMENTO"
                 },
-                title=f"MODELO {sel_modelo} - PROPORÇÃO DA POPULAÇÃO"
+                title=f"MODELO {sel_modelo} — PROPORÇÃO DA POPULAÇÃO"
             )
+
             st.plotly_chart(format_plot_br(fig4), width="stretch")
+
         else:
             st.warning("MODELO SEM COMPARTIMENTOS DISPONÍVEIS.")
 
@@ -270,7 +255,7 @@ def main():
                     "value": "INFECTANTES",
                     "variable": "SÉRIE"
                 },
-                title="INFECTANTES - DADOS OBSERVADOS VS MODELO"
+                title="INFECTANTES — DADOS OBSERVADOS VS MODELO"
             )
             st.plotly_chart(format_plot_br(fig5), width="stretch")
         else:
@@ -285,4 +270,3 @@ try:
 except Exception:
     st.error("❌ ERRO CRÍTICO NO APLICATIVO")
     st.code(traceback.format_exc())
-
