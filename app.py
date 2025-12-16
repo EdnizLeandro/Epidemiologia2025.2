@@ -1,7 +1,4 @@
-# ============================================================
-# COVID-19 EM PERNAMBUCO
-# DADOS OBSERVADOS + MODELOS EPIDEMIOLÓGICOS
-# ============================================================
+# COVID-19 EM PERNAMBUCO - # DADOS OBSERVADOS + MODELOS EPIDEMIOLÓGICOS
 
 import streamlit as st
 import pandas as pd
@@ -9,18 +6,14 @@ import plotly.express as px
 from pathlib import Path
 import traceback
 
-# ------------------------------------------------------------
 # CONFIGURAÇÕES GERAIS
-# ------------------------------------------------------------
 st.set_option("client.showErrorDetails", True)
 
 BASE_DIR = Path(__file__).parent
 DATA_REAL = BASE_DIR / "covid_pe_seir_ready.parquet"
 DATA_MODEL = BASE_DIR / "cache.parquet"
 
-# ------------------------------------------------------------
 # FUNÇÕES AUXILIARES
-# ------------------------------------------------------------
 def read_parquet_safe(path: Path):
     try:
         return pd.read_parquet(path, engine="pyarrow")
@@ -48,9 +41,8 @@ def format_plot_br(fig):
     return fig
 
 
-# ------------------------------------------------------------
 # APP PRINCIPAL
-# ------------------------------------------------------------
+
 def main():
 
     st.set_page_config(
@@ -58,11 +50,10 @@ def main():
         layout="wide"
     )
 
-    st.title("📊 COVID-19 EM PERNAMBUCO — DADOS E MODELOS EPIDEMIOLÓGICOS")
+    st.title("📊 COVID-19 EM PERNAMBUCO - DADOS E MODELOS EPIDEMIOLÓGICOS")
 
-    # --------------------------------------------------------
     # VERIFICAÇÃO DE ARQUIVOS
-    # --------------------------------------------------------
+    
     if not DATA_REAL.exists():
         st.error("ARQUIVO covid_pe_seir_ready.parquet NÃO ENCONTRADO.")
         st.stop()
@@ -71,15 +62,13 @@ def main():
         st.error("ARQUIVO cache.parquet NÃO ENCONTRADO.")
         st.stop()
 
-    # --------------------------------------------------------
     # CARREGAMENTO
-    # --------------------------------------------------------
+    
     df_real = read_parquet_safe(DATA_REAL)
     df_model = read_parquet_safe(DATA_MODEL)
 
-    # --------------------------------------------------------
     # NORMALIZAÇÃO
-    # --------------------------------------------------------
+    
     df_real["date"] = pd.to_datetime(df_real["date"], errors="coerce")
     df_model["date"] = pd.to_datetime(df_model["date"], errors="coerce")
 
@@ -90,9 +79,8 @@ def main():
     df_model["municipio"] = df_model["municipio"].str.upper().str.strip()
     df_model["modelo"] = df_model["modelo"].str.upper().str.strip()
 
-    # --------------------------------------------------------
     # SIDEBAR
-    # --------------------------------------------------------
+    
     st.sidebar.header("🎛️ FILTROS")
 
     municipios = ["TODOS"] + sorted(df_real["municipio"].unique())
@@ -105,9 +93,8 @@ def main():
     ini = df_real["date"].min()
     fim = df_real["date"].max()
 
-    # --------------------------------------------------------
     # DADOS OBSERVADOS
-    # --------------------------------------------------------
+   
     real = df_real.copy()
 
     if sel_muni == "TODOS":
@@ -123,9 +110,9 @@ def main():
     else:
         real = real[real["municipio"] == sel_muni]
 
-    # --------------------------------------------------------
+   
     # DADOS DOS MODELOS
-    # --------------------------------------------------------
+   
     model = df_model[df_model["modelo"] == sel_modelo]
 
     compartimentos = [c for c in ["S", "E", "I", "R", "D", "V"] if c in model.columns]
@@ -135,16 +122,15 @@ def main():
     else:
         model = model[model["municipio"] == sel_muni]
 
-    # --------------------------------------------------------
     # ABAS
-    # --------------------------------------------------------
+    
     tab1, tab2, tab3 = st.tabs([
         "📊 DADOS OBSERVADOS",
         "🧮 MODELOS EPIDEMIOLÓGICOS",
         "⚖️ OBSERVADO × MODELO"
     ])
 
-    # ================= TAB 1 =================
+    # TAB 1 
     with tab1:
         fig1 = px.line(
             real,
@@ -156,9 +142,9 @@ def main():
                 "variable": "SÉRIE"
             },
             title=(
-                "CASOS OBSERVADOS — ESTADO DE PERNAMBUCO"
+                "CASOS OBSERVADOS - ESTADO DE PERNAMBUCO"
                 if sel_muni == "TODOS"
-                else f"CASOS OBSERVADOS — {sel_muni}"
+                else f"CASOS OBSERVADOS - {sel_muni}"
             )
         )
         st.plotly_chart(format_plot_br(fig1), width="stretch")
@@ -172,19 +158,19 @@ def main():
                 "cum_cases": "CASOS ACUMULADOS"
             },
             title=(
-                "CASOS ACUMULADOS — ESTADO DE PERNAMBUCO"
+                "CASOS ACUMULADOS - ESTADO DE PERNAMBUCO"
                 if sel_muni == "TODOS"
-                else f"CASOS ACUMULADOS — {sel_muni}"
+                else f"CASOS ACUMULADOS - {sel_muni}"
             )
         )
         st.plotly_chart(format_plot_br(fig2), width="stretch")
 
-    # ================= TAB 2 =================
+    # TAB 2 
     with tab2:
 
         if compartimentos:
 
-            st.subheader("📈 EVOLUÇÃO TEMPORAL — VALORES ABSOLUTOS")
+            st.subheader("📈 EVOLUÇÃO TEMPORAL - VALORES ABSOLUTOS")
 
             usar_log = st.checkbox(
                 "USAR ESCALA LOGARÍTMICA (RECOMENDADO PARA VISUALIZAR E)",
@@ -200,7 +186,7 @@ def main():
                     "value": "POPULAÇÃO",
                     "variable": "COMPARTIMENTO"
                 },
-                title=f"MODELO {sel_modelo} — VALORES ABSOLUTOS"
+                title=f"MODELO {sel_modelo} - VALORES ABSOLUTOS"
             )
 
             if usar_log:
@@ -208,9 +194,8 @@ def main():
 
             st.plotly_chart(format_plot_br(fig3), width="stretch")
 
-            # ------------------------------------------------
             # NORMALIZAÇÃO (%)
-            # ------------------------------------------------
+           
             st.subheader("📊 DISTRIBUIÇÃO PERCENTUAL DA POPULAÇÃO")
 
             model_pct = model.copy()
@@ -228,7 +213,7 @@ def main():
                     "value": "PERCENTUAL DA POPULAÇÃO (%)",
                     "variable": "COMPARTIMENTO"
                 },
-                title=f"MODELO {sel_modelo} — PROPORÇÃO DA POPULAÇÃO"
+                title=f"MODELO {sel_modelo} - PROPORÇÃO DA POPULAÇÃO"
             )
 
             st.plotly_chart(format_plot_br(fig4), width="stretch")
@@ -236,7 +221,7 @@ def main():
         else:
             st.warning("MODELO SEM COMPARTIMENTOS DISPONÍVEIS.")
 
-    # ================= TAB 3 =================
+    # TAB 3 
     with tab3:
         if "I_est" in real.columns and "I" in model.columns:
             comp = pd.merge(
@@ -255,16 +240,15 @@ def main():
                     "value": "INFECTANTES",
                     "variable": "SÉRIE"
                 },
-                title="INFECTANTES — DADOS OBSERVADOS VS MODELO"
+                title="INFECTANTES - DADOS OBSERVADOS VS MODELO"
             )
             st.plotly_chart(format_plot_br(fig5), width="stretch")
         else:
             st.info("COMPARAÇÃO NÃO DISPONÍVEL PARA ESTE MODELO.")
 
 
-# ------------------------------------------------------------
 # EXECUÇÃO SEGURA
-# ------------------------------------------------------------
+
 try:
     main()
 except Exception:
