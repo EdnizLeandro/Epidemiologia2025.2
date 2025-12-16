@@ -1,42 +1,46 @@
-
 ---
 
 # 📊 COVID-19 EM PERNAMBUCO
 
 ## Dados Observados e Modelos Epidemiológicos (SIR / SEIR / SEIRD / SEIRV)
 
-Este repositório apresenta um **dashboard interativo em Streamlit** para análise da evolução da **COVID-19 no estado de Pernambuco**, integrando **dados epidemiológicos reais (2020–2025)** com **modelos matemáticos compartimentais** amplamente utilizados em epidemiologia.
+Este repositório apresenta um **dashboard interativo desenvolvido em Streamlit** para a análise da evolução da COVID-19 no **estado de Pernambuco**, integrando **dados epidemiológicos reais (2020–2025)** com **modelos matemáticos compartimentais** amplamente utilizados em epidemiologia.
 
-Dataset utilizado:
+O sistema permite visualizar **dados observados**, **simulações epidemiológicas** e a **comparação entre dados reais e modelos**, cobrindo **todo o período disponível nos arquivos**, sem cortes temporais implícitos.
 
-https://covid.saude.gov.br/
+🌐 **Aplicação online:**
+[https://sl1nk.com/epidemiologia20252](https://sl1nk.com/epidemiologia20252)
 
-https://opendatasus.saude.gov.br/dataset/?tags=covid-19
+---
 
+## 📚 Fontes de Dados
 
-O sistema permite visualizar **dados observados**, **projeções epidemiológicas** e a **comparação entre dados reais e modelos**, cobrindo **todo o período disponível nos arquivos**, sem cortes temporais implícitos.
+Os dados utilizados neste projeto foram obtidos a partir de bases oficiais do Ministério da Saúde do Brasil:
 
-Site: https://sl1nk.com/epidemiologia20252
+* [https://covid.saude.gov.br/](https://covid.saude.gov.br/)
+* [https://opendatasus.saude.gov.br/dataset/?tags=covid-19](https://opendatasus.saude.gov.br/dataset/?tags=covid-19)
+
+Os dados foram **pré-processados, filtrados e agregados**, mantendo apenas registros referentes ao **estado de Pernambuco (PE)**.
 
 ---
 
 ## 🎯 Objetivos do Projeto
 
-* Analisar a evolução temporal da COVID-19 em Pernambuco
-* Aplicar modelos epidemiológicos compartimentais:
+* Analisar a **evolução temporal da COVID-19 em Pernambuco**
+* Aplicar e comparar **modelos epidemiológicos compartimentais**:
 
   * **SIR**
   * **SEIR**
   * **SEIRD**
   * **SEIRV**
-* Compara dados observados com simulações epidemiológica
-* Fornecer uma ferramenta visual clara para apoio a estudos acadêmicos
+* Comparar **dados observados** com **simulações epidemiológicas**
+* Fornecer uma **ferramenta visual clara e interativa** para apoio a estudos acadêmicos
 
 ---
 
 ## 🗂️ Estrutura do Repositório
 
-```text
+```
 ├── app.py                         # Aplicação Streamlit
 ├── covid_pe_seir_ready.parquet    # Dados epidemiológicos observados (PE)
 ├── cache.parquet                  # Resultados dos modelos epidemiológicos
@@ -50,24 +54,24 @@ Site: https://sl1nk.com/epidemiologia20252
 
 ### 🔹 `covid_pe_seir_ready.parquet`
 
-Base de dados **pré-processada**, contendo apenas **registros do estado de Pernambuco (PE)**.
+Base de dados **pré-processada**, contendo exclusivamente registros do **estado de Pernambuco**.
 
-Principais variáveis:
+**Principais variáveis:**
 
 * `date` – Data do registro
 * `municipio` – Município de Pernambuco
-* `new_cases` – Casos novos diários
+* `new_cases` – Casos novos diários (incidência)
 * `cum_cases` – Casos acumulados
-* `I_est` – Estimativa de infectantes
+* `I_est` – Estimativa de indivíduos infectantes
 * `population` – População estimada
 
 ---
 
 ### 🔹 `cache.parquet`
 
-Arquivo de **cache computacional**, contendo os resultados pré-calculados dos modelos epidemiológicos.
+Arquivo de **cache computacional**, contendo os **resultados pré-calculados dos modelos epidemiológicos**.
 
-Principais variáveis:
+**Principais variáveis:**
 
 * `date` – Data da simulação
 * `municipio` – Município
@@ -76,9 +80,9 @@ Principais variáveis:
 
 Este arquivo é utilizado para:
 
-* Acelerar o carregamento do app
-* Evitar reprocessamento pesado no Streamlit
-* Garantir consistência entre execuções
+* 🚀 Acelerar o carregamento do aplicativo
+* 🧮 Evitar reprocessamentos computacionais pesados no Streamlit
+* 🔁 Garantir consistência e reprodutibilidade entre execuções
 
 ---
 
@@ -91,13 +95,13 @@ Este arquivo é utilizado para:
 | **SEIRD** | Inclui óbitos                          |
 | **SEIRV** | Inclui vacinação                       |
 
-Os modelos seguem formulações clássicas da literatura epidemiológica, com parâmetros estimados previamente e armazenados no arquivo de cache.
+Os modelos seguem **formulações clássicas da literatura epidemiológica**, com parâmetros estimados previamente e armazenados no arquivo de cache.
 
 ---
 
 ## 📊 Funcionalidades do Dashboard
 
-* Seleção de **município** (ou todo o estado)
+* Seleção de **município** ou **estado inteiro**
 * Seleção de **modelo epidemiológico**
 * Visualização de:
 
@@ -107,7 +111,7 @@ Os modelos seguem formulações clássicas da literatura epidemiológica, com pa
   * Evolução dos compartimentos epidemiológicos
   * Proporção da população por compartimento
   * Comparação **Observado × Modelo**
-* **Período completo automático** (todo o intervalo disponível nos arquivos)
+* Exibição automática de **todo o período disponível nos arquivos**
 * Datas no **formato brasileiro (DD/MM/AAAA)**
 
 ---
@@ -135,10 +139,7 @@ streamlit run app.py
 ```
 
 O app estará disponível em:
-
-```
-http://localhost:8501
-```
+👉 [http://localhost:8501](http://localhost:8501)
 
 ---
 
@@ -154,21 +155,24 @@ http://localhost:8501
 
 ## 🧠 Considerações Metodológicas
 
-* O período analisado corresponde **integralmente aos dados disponíveis nos arquivos**
-* Não há cortes temporais implícitos
-* Todos os municípios pertencem exclusivamente ao estado de Pernambuco
-* O uso de cache garante reprodutibilidade e desempenho
+* O período analisado corresponde **integralmente aos dados disponíveis**
+* Não há **cortes temporais implícitos**
+* Todos os municípios pertencem exclusivamente ao **estado de Pernambuco**
+* A utilização de **cache computacional** garante desempenho e reprodutibilidade
+* A comparação entre dados reais e modelos é realizada de forma **conceitualmente consistente**
 
 ---
 
 ## 📜 Licença
 
-Este projeto é disponibilizado para **fins acadêmicos e educacionais**.
+Este projeto é disponibilizado **exclusivamente para fins acadêmicos e educacionais**.
 
 ---
 
 ## 👨‍🔬 Autor / Orientação
 
-Projeto desenvolvido para fins acadêmico da UFRPE na matéria **Modelagem Computacional_Epidemiologia**, com foco na análise da COVID-19 no estado de Pernambuco.
+Projeto desenvolvido para fins **acadêmicos** na **Universidade Federal Rural de Pernambuco (UFRPE)**,
+na disciplina **Modelagem Computacional em Epidemiologia**,
+com foco na análise da **COVID-19 no estado de Pernambuco**.
 
 ---
