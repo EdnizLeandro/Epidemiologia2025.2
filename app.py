@@ -1,5 +1,7 @@
-
-# COVID-19 EM PERNAMBUCO - DADOS OBSERVADOS + MODELOS EPIDEMIOLÓGICOS
+# ============================================================
+# COVID-19 EM PERNAMBUCO
+# DADOS OBSERVADOS + MODELOS EPIDEMIOLÓGICOS
+# ============================================================
 
 import streamlit as st
 import pandas as pd
@@ -7,17 +9,18 @@ import plotly.express as px
 from pathlib import Path
 import traceback
 
+# ------------------------------------------------------------
 # CONFIGURAÇÕES GERAIS
-
+# ------------------------------------------------------------
 st.set_option("client.showErrorDetails", True)
 
 BASE_DIR = Path(__file__).parent
 DATA_REAL = BASE_DIR / "covid_pe_seir_ready.parquet"
 DATA_MODEL = BASE_DIR / "cache.parquet"
 
-
+# ------------------------------------------------------------
 # FUNÇÕES AUXILIARES
-
+# ------------------------------------------------------------
 def read_parquet_safe(path: Path):
     try:
         return pd.read_parquet(path, engine="pyarrow")
@@ -44,8 +47,20 @@ def format_plot_br(fig):
     )
     return fig
 
-# APP PRINCIPAL
 
+# ------------------------------------------------------------
+# MAPA DE COMPARTIMENTOS POR MODELO (CORREÇÃO SEIRD)
+# ------------------------------------------------------------
+MAP_MODELOS = {
+    "SIR":   ["S", "I", "R"],
+    "SEIR":  ["S", "E", "I", "R"],
+    "SEIRD": ["S", "E", "I", "R", "D"],
+    "SEIRV": ["S", "E", "I", "R", "V"]
+}
+
+# ------------------------------------------------------------
+# APP PRINCIPAL
+# ------------------------------------------------------------
 def main():
 
     st.set_page_config(
@@ -55,9 +70,9 @@ def main():
 
     st.title("📊 COVID-19 EM PERNAMBUCO - DADOS E MODELOS EPIDEMIOLÓGICOS")
 
-
+    # --------------------------------------------------------
     # VERIFICAÇÃO DE ARQUIVOS
-   
+    # --------------------------------------------------------
     if not DATA_REAL.exists():
         st.error("ARQUIVO covid_pe_seir_ready.parquet NÃO ENCONTRADO.")
         st.stop()
@@ -66,13 +81,15 @@ def main():
         st.error("ARQUIVO cache.parquet NÃO ENCONTRADO.")
         st.stop()
 
-       # CARREGAMENTO
-  
+    # --------------------------------------------------------
+    # CARREGAMENTO
+    # --------------------------------------------------------
     df_real = read_parquet_safe(DATA_REAL)
     df_model = read_parquet_safe(DATA_MODEL)
 
+    # --------------------------------------------------------
     # NORMALIZAÇÃO
-    
+    # --------------------------------------------------------
     df_real["date"] = pd.to_datetime(df_real["date"], errors="coerce")
     df_model["date"] = pd.to_datetime(df_model["date"], errors="coerce")
 
@@ -83,8 +100,9 @@ def main():
     df_model["municipio"] = df_model["municipio"].str.upper().str.strip()
     df_model["modelo"] = df_model["modelo"].str.upper().str.strip()
 
+    # --------------------------------------------------------
     # SIDEBAR
-   
+    # --------------------------------------------------------
     st.sidebar.header("🎛️ FILTROS")
 
     municipios = ["TODOS"] + sorted(df_real["municipio"].unique())
@@ -93,22 +111,24 @@ def main():
     sel_muni = st.sidebar.selectbox("MUNICÍPIO", municipios)
     sel_modelo = st.sidebar.selectbox("MODELO EPIDEMIOLÓGICO", modelos)
 
-    min_date = df_real["date"].min().date()
-    max_date = df_real["date"].max().date()
+    # 👉 TODO O PERÍODO DOS ARQUIVOS
+    min_date = min(df_real["date"].min(), df_model["date"].min()).date()
+    max_date = max(df_real["date"].max(), df_model["date"].max()).date()
 
     ini, fim = st.sidebar.date_input(
         "PERÍODO DE ANÁLISE",
         [min_date, max_date],
         min_value=min_date,
         max_value=max_date,
-        format="DD/MM/YYYY"   # 🇧🇷 FORMATO BRASILEIRO
+        format="DD/MM/YYYY"
     )
 
     ini = pd.to_datetime(ini)
     fim = pd.to_datetime(fim)
 
+    # --------------------------------------------------------
     # DADOS OBSERVADOS
-    
+    # --------------------------------------------------------
     real = df_real[(df_real["date"] >= ini) & (df_real["date"] <= fim)]
 
     if sel_muni == "TODOS":
@@ -124,23 +144,35 @@ def main():
     else:
         real = real[real["municipio"] == sel_muni]
 
-    # DADOS DOS MODELOS
-  
+    # --------------------------------------------------------
+    # DADOS DOS MODELOS (CORRIGIDO)
+    # --------------------------------------------------------
     model = df_model[
         (df_model["date"] >= ini) &
         (df_model["date"] <= fim) &
         (df_model["modelo"] == sel_modelo)
     ]
 
-    compartimentos = [c for c in ["S", "E", "I", "R", "D", "V"] if c in model.columns]
+    compartimentos = MAP_MODELOS.get(sel_modelo, [])
+
+    # GARANTE TODAS AS COLUNAS (SEIRD NÃO SOME)
+    for c in compartimentos:
+        if c not in model.columns:
+            model[c] = 0.0
 
     if sel_muni == "TODOS":
-        model = model.groupby("date", as_index=False)[compartimentos].sum()
+        model = (
+            model
+            .groupby("date", as_index=False)
+            .agg({c: "sum" for c in compartimentos})
+        )
     else:
         model = model[model["municipio"] == sel_muni]
+        model = model[["date"] + compartimentos]
 
-       # ABAS
- 
+    # --------------------------------------------------------
+    # ABAS
+    # --------------------------------------------------------
     tab1, tab2, tab3 = st.tabs([
         "📊 DADOS OBSERVADOS",
         "🧮 MODELOS EPIDEMIOLÓGICOS",
@@ -159,7 +191,7 @@ def main():
                 "variable": "SÉRIE"
             },
             title=(
-                "CASOS OBSERVADOS — ESTADO DE PERNAMBUCO"
+                "CASOS OBSERVADOS - ESTADO DE PERNAMBUCO"
                 if sel_muni == "TODOS"
                 else f"CASOS OBSERVADOS — {sel_muni}"
             )
@@ -194,12 +226,13 @@ def main():
                     "value": "POPULAÇÃO",
                     "variable": "COMPARTIMENTO"
                 },
-                title=f"MODELO {sel_modelo} — EVOLUÇÃO TEMPORAL"
+                title=f"MODELO {sel_modelo} - EVOLUÇÃO TEMPORAL"
             )
             st.plotly_chart(format_plot_br(fig3), width="stretch")
 
             model_pct = model.copy()
             total = model_pct[compartimentos].sum(axis=1)
+
             for c in compartimentos:
                 model_pct[c] = 100 * model_pct[c] / total
 
@@ -212,7 +245,7 @@ def main():
                     "value": "PERCENTUAL DA POPULAÇÃO (%)",
                     "variable": "COMPARTIMENTO"
                 },
-                title=f"MODELO {sel_modelo} — PROPORÇÃO DA POPULAÇÃO"
+                title=f"MODELO {sel_modelo} - PROPORÇÃO DA POPULAÇÃO"
             )
             st.plotly_chart(format_plot_br(fig4), width="stretch")
         else:
@@ -237,16 +270,19 @@ def main():
                     "value": "INFECTANTES",
                     "variable": "SÉRIE"
                 },
-                title="INFECTANTES — DADOS OBSERVADOS VS MODELO"
+                title="INFECTANTES - DADOS OBSERVADOS VS MODELO"
             )
             st.plotly_chart(format_plot_br(fig5), width="stretch")
         else:
             st.info("COMPARAÇÃO NÃO DISPONÍVEL PARA ESTE MODELO.")
 
-# EXECUÇÃO SEGURA
 
+# ------------------------------------------------------------
+# EXECUÇÃO SEGURA
+# ------------------------------------------------------------
 try:
     main()
 except Exception:
     st.error("❌ ERRO CRÍTICO NO APLICATIVO")
     st.code(traceback.format_exc())
+
