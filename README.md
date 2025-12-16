@@ -9,6 +9,7 @@ Este repositório apresenta um **dashboard interativo desenvolvido em Streamlit*
 O sistema permite visualizar **dados observados**, **simulações epidemiológicas** e a **comparação entre dados reais e modelos**, cobrindo **todo o período disponível nos arquivos**, sem cortes temporais implícitos.
 
 🌐 **Aplicação online:**
+   
    https://shre.ink/qWBW
 
 ---
