@@ -7,6 +7,11 @@
 
 Este repositório apresenta um **dashboard interativo em Streamlit** para análise da evolução da **COVID-19 no estado de Pernambuco**, integrando **dados epidemiológicos reais (2020–2025)** com **modelos matemáticos compartimentais** amplamente utilizados em epidemiologia.
 
+Dataset utilizado:
+https://covid.saude.gov.br/
+https://opendatasus.saude.gov.br/dataset/?tags=covid-19
+
+
 O sistema permite visualizar **dados observados**, **projeções epidemiológicas** e a **comparação entre dados reais e modelos**, cobrindo **todo o período disponível nos arquivos**, sem cortes temporais implícitos.
 
 Site: https://sl1nk.com/epidemiologia20252
