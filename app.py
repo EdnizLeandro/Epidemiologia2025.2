@@ -1,5 +1,4 @@
 # COVID-19 EM PERNAMBUCO - # DADOS OBSERVADOS + MODELOS EPIDEMIOLÓGICOS
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
