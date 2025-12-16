@@ -9,6 +9,7 @@ Este repositório apresenta um **dashboard interativo em Streamlit** para análi
 
 Dataset utilizado:
 https://covid.saude.gov.br/
+
 https://opendatasus.saude.gov.br/dataset/?tags=covid-19
 
 
