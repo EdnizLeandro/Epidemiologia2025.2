@@ -169,6 +169,6 @@ Este projeto é disponibilizado para **fins acadêmicos e educacionais**.
 
 ## 👨‍🔬 Autor / Orientação
 
-Projeto desenvolvido para fins acadêmico da UFRPE da matéria **Modelagem Computacional_Epidemiologia**, com foco na análise da COVID-19 no estado de Pernambuco.
+Projeto desenvolvido para fins acadêmico da UFRPE na matéria **Modelagem Computacional_Epidemiologia**, com foco na análise da COVID-19 no estado de Pernambuco.
 
 ---
