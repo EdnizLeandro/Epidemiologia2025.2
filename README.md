@@ -19,7 +19,6 @@ Os dados utilizados neste projeto foram obtidos a partir de bases oficiais do Mi
 * [https://covid.saude.gov.br/](https://covid.saude.gov.br/)
 * [https://opendatasus.saude.gov.br/dataset/?tags=covid-19](https://opendatasus.saude.gov.br/dataset/?tags=covid-19)
 
-Os dados foram **pré-processados e filtrados**, mantendo apenas registros referentes ao **estado de Pernambuco (PE)**.
 
 ---
 
