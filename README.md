@@ -111,7 +111,7 @@ Os modelos seguem **formulações clássicas da literatura epidemiológica**, co
   * Proporção da população por compartimento
   * Comparação **Observado × Modelo**
 * Exibição automática de **todo o período disponível nos arquivos**
-* Datas no **formato brasileiro (DD/MM/AAAA)**
+* Datas no **formato (DD/MM/AAAA)**
 
 ---
 
