@@ -72,10 +72,10 @@ Arquivo de **cache computacional**, contendo os **resultados pré-calculados dos
 
 **Principais variáveis:**
 
-* `date` – Data da simulação
-* `municipio` – Município
-* `modelo` – Tipo de modelo (`SIR`, `SEIR`, `SEIRD`, `SEIRV`)
-* `S`, `E`, `I`, `R`, `D`, `V` – Compartimentos epidemiológicos
+* `date` - Data da simulação
+* `municipio` - Município
+* `modelo` - Tipo de modelo (`SIR`, `SEIR`, `SEIRD`, `SEIRV`)
+* `S`, `E`, `I`, `R`, `D`, `V` - Compartimentos epidemiológicos
 
 Este arquivo é utilizado para:
 
@@ -89,7 +89,7 @@ Este arquivo é utilizado para:
 
 | Modelo    | Descrição                              |
 | --------- | -------------------------------------- |
-| **SIR**   | Suscetíveis – Infectados – Recuperados |
+| **SIR**   | Suscetíveis - Infectados - Recuperados |
 | **SEIR**  | Inclui período de incubação (Expostos) |
 | **SEIRD** | Inclui óbitos                          |
 | **SEIRV** | Inclui vacinação                       |
